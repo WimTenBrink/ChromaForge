@@ -1,6 +1,5 @@
-
 import React, { useState, DragEvent } from 'react';
-import { Upload, X, Loader2 } from 'lucide-react';
+import { Upload, X, Loader2, RefreshCw, Trash2 } from 'lucide-react';
 import { InputImage, Job } from '../types';
 
 interface Props {
@@ -8,9 +7,10 @@ interface Props {
   activeJobs: Job[];
   onAddFiles: (files: FileList) => void;
   onRemove: (id: string) => void;
+  onRerun: (id: string) => void;
 }
 
-const InputList: React.FC<Props> = ({ inputs, activeJobs, onAddFiles, onRemove }) => {
+const InputList: React.FC<Props> = ({ inputs, activeJobs, onAddFiles, onRemove, onRerun }) => {
   const [isDragging, setIsDragging] = useState(false);
 
   const handleDragOver = (e: DragEvent<HTMLLabelElement>) => {
@@ -94,30 +94,42 @@ const InputList: React.FC<Props> = ({ inputs, activeJobs, onAddFiles, onRemove }
         {inputs.map((input) => {
           // Find if there is an active job for this input
           const activeJob = activeJobs.find(job => job.sourceImageId === input.id);
+          const isDone = input.status === 'COMPLETED' || input.status === 'PARTIAL' || input.status === 'FAILED';
 
           return (
-            <div key={input.id} className="relative group bg-slate-800 rounded-lg overflow-hidden border border-slate-700">
-              <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                <button 
-                  onClick={() => onRemove(input.id)}
-                  className="bg-black/50 hover:bg-red-500 text-white p-1 rounded-full backdrop-blur-sm"
-                >
-                  <X size={14} />
-                </button>
-              </div>
+            <div key={input.id} className={`relative group bg-slate-800 rounded-lg overflow-hidden border ${
+                input.status === 'FAILED' ? 'border-red-900/50' : 'border-slate-700'
+            }`}>
+              {/* Top right delete button (only when not processing) */}
+              {input.status !== 'PROCESSING' && input.status !== 'ANALYZING' && (
+                  <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                    <button 
+                      onClick={() => onRemove(input.id)}
+                      className="bg-black/50 hover:bg-red-500 text-white p-1 rounded-full backdrop-blur-sm"
+                      title="Remove"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+              )}
+
               <div className="h-32 w-full overflow-hidden">
                   <img src={input.previewUrl} alt="preview" className="w-full h-full object-cover" />
               </div>
               <div className="p-3">
                 <div className="flex justify-between items-center mb-1">
-                    <span className="text-xs font-mono text-slate-400 truncate w-3/4">{input.file.name}</span>
+                    <span className="text-xs font-mono text-slate-400 truncate w-3/4" title={input.file ? input.file.name : input.name}>
+                        {input.file ? input.file.name : input.name}
+                    </span>
                 </div>
                 <div className="flex justify-between items-center text-xs">
-                      <span className={`font-bold ${
-                          input.status === 'PROCESSING' ? 'text-amber-400' :
+                      <span className={`font-bold flex items-center gap-1 ${
+                          input.status === 'PROCESSING' || input.status === 'ANALYZING' ? 'text-amber-400' :
                           input.status === 'COMPLETED' ? 'text-emerald-400' :
+                          input.status === 'FAILED' ? 'text-red-400' :
                           'text-slate-500'
                       }`}>
+                          {(input.status === 'PROCESSING' || input.status === 'ANALYZING') && <Loader2 size={10} className="animate-spin"/>}
                           {input.status}
                       </span>
                       {input.totalVariations > 0 && (
@@ -134,6 +146,7 @@ const InputList: React.FC<Props> = ({ inputs, activeJobs, onAddFiles, onRemove }
                         />
                     </div>
                 )}
+                
                 {/* Visual Feedback for active options */}
                 {activeJob && (
                     <div className="mt-2 p-2 bg-slate-900/50 rounded border border-slate-700/50">
@@ -146,6 +159,25 @@ const InputList: React.FC<Props> = ({ inputs, activeJobs, onAddFiles, onRemove }
                         </p>
                     </div>
                 )}
+
+                {/* Actions for completed/failed items */}
+                {isDone && (
+                    <div className="mt-3 grid grid-cols-2 gap-2 border-t border-slate-700/50 pt-2">
+                        <button 
+                            onClick={() => onRerun(input.id)}
+                            className="flex items-center justify-center gap-1 bg-slate-700 hover:bg-emerald-700 text-slate-300 hover:text-white py-1.5 rounded text-[10px] font-bold transition-colors"
+                        >
+                            <RefreshCw size={12} /> Rerun
+                        </button>
+                        <button 
+                            onClick={() => onRemove(input.id)}
+                            className="flex items-center justify-center gap-1 bg-slate-700 hover:bg-red-900 text-slate-300 hover:text-red-200 py-1.5 rounded text-[10px] font-bold transition-colors"
+                        >
+                            <Trash2 size={12} /> Delete
+                        </button>
+                    </div>
+                )}
+
               </div>
             </div>
           );

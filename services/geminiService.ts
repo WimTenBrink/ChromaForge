@@ -142,58 +142,85 @@ export const analyzeImage = async (file: File | string, mimeTypeInput?: string):
     Analyze this image in detail (simulating Google Cloud Vision).
     Provide the output in JSON format with the following keys:
     - title: A creative, short title for the image (max 5 words).
-    - description: A detailed description of the image content.
-    - objects: A list of objects detected in the image.
+    - description: A concise description of the image content (max 100 words).
+    - objects: A list of up to 20 prominent objects detected in the image.
     - safety: A safety assessment summary (Safe/Unsafe and why).
   `;
 
-  const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: {
-          parts: [
-              { inlineData: { mimeType, data: base64Image } },
-              { text: prompt }
-          ]
-      },
-      config: {
-          responseMimeType: 'application/json',
-          responseSchema: {
-              type: Type.OBJECT,
-              properties: {
-                  title: { type: Type.STRING },
-                  description: { type: Type.STRING },
-                  objects: { type: Type.ARRAY, items: { type: Type.STRING } },
-                  safety: { type: Type.STRING }
+  try {
+      const response = await ai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: {
+              parts: [
+                  { inlineData: { mimeType, data: base64Image } },
+                  { text: prompt }
+              ]
+          },
+          config: {
+              responseMimeType: 'application/json',
+              responseSchema: {
+                  type: Type.OBJECT,
+                  properties: {
+                      title: { type: Type.STRING },
+                      description: { type: Type.STRING },
+                      objects: { type: Type.ARRAY, items: { type: Type.STRING } },
+                      safety: { type: Type.STRING }
+                  }
               }
           }
+      });
+
+      let jsonText = response.text || "{}";
+      
+      // Sanitize JSON (remove markdown code blocks if present)
+      jsonText = jsonText.replace(/```json\n?|\n?```/g, '').trim();
+      
+      let data;
+      try {
+          data = JSON.parse(jsonText);
+      } catch (e) {
+          log('WARN', 'JSON Parse Failed, using fallback', { textLength: jsonText.length, error: (e as Error).message });
+          // Fallback to prevent app crash
+          data = {
+              title: "Analysis Incomplete",
+              description: "The analysis data could not be fully parsed from the model response. Proceeding with defaults.",
+              objects: [],
+              safety: "Unknown"
+          };
       }
-  });
+      
+      // Provide defaults if fields are missing in valid JSON
+      const title = data.title || "Untitled";
+      const description = data.description || "No description provided.";
+      const objects = Array.isArray(data.objects) ? data.objects : [];
+      const safety = data.safety || "Unknown";
 
-  const jsonText = response.text || "{}";
-  const data = JSON.parse(jsonText);
-
-  // Generate Markdown content
-  const markdownContent = `
-# ${data.title}
+      // Generate Markdown content
+      const markdownContent = `
+# ${title}
 
 ## Description
-${data.description}
+${description}
 
 ## Analysis
-**Safety Assessment**: ${data.safety}
+**Safety Assessment**: ${safety}
 
 ### Objects Detected
-${data.objects.map((obj: string) => `- ${obj}`).join('\n')}
+${objects.length > 0 ? objects.map((obj: string) => `- ${obj}`).join('\n') : 'No specific objects listed.'}
 
 ## Original Image
 ![Original Encoded Image](data:${mimeType};base64,${base64Image})
-  `.trim();
+      `.trim();
 
-  return {
-      title: data.title,
-      description: data.description,
-      objects: data.objects,
-      safety: data.safety,
-      markdownContent
-  };
+      return {
+          title,
+          description,
+          objects,
+          safety,
+          markdownContent
+      };
+  } catch (error) {
+      log('ERROR', 'Analysis Request Error', error);
+      throw error;
+  }
 };

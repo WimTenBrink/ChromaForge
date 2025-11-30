@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
-import { Play, Pause, Settings, Terminal, Plus, Shield, ShieldCheck, Trash2, Loader2, AlertTriangle } from 'lucide-react';
+import { Play, Pause, Settings, Terminal, Plus, Shield, ShieldCheck, Trash2, Loader2, AlertTriangle, Activity } from 'lucide-react';
 import InputList from './components/InputList';
 import FailedList from './components/FailedList';
 import OptionsDialog from './components/OptionsDialog';
@@ -11,6 +10,7 @@ import { DEFAULT_OPTIONS, MAX_CONCURRENT_JOBS } from './constants';
 import { generatePermutations, buildPromptFromCombo } from './utils/combinatorics';
 import { processImage, analyzeImage } from './services/geminiService';
 import { log } from './services/logger';
+import { saveQueueToDB, loadQueueFromDB } from './services/db';
 
 const App: React.FC = () => {
   // --- State ---
@@ -28,9 +28,21 @@ const App: React.FC = () => {
   const [selectedImage, setSelectedImage] = useState<GeneratedImage | null>(null);
   
   const [apiKeyReady, setApiKeyReady] = useState(false);
+  const [clearConfirmation, setClearConfirmation] = useState(false);
 
   // Statistics for header
-  const totalVariationsScheduled = pendingJobs.length + processingJobs.length + generatedImages.length + failedItems.length;
+  const getPermutationCount = (opts: AppOptions) => {
+    return (Object.keys(opts) as Array<keyof AppOptions>).reduce((acc, key) => {
+        const len = opts[key].length;
+        return acc * (len > 0 ? len : 1);
+    }, 1);
+  };
+
+  const permCount = getPermutationCount(options);
+  const queuedInputsCount = inputQueue.filter(i => i.status === 'QUEUED' || i.status === 'ANALYZING').length;
+  const projectedVariations = queuedInputsCount * permCount;
+
+  const totalVariationsScheduled = projectedVariations + pendingJobs.length + processingJobs.length + generatedImages.length + failedItems.length;
   const totalCompleted = generatedImages.length;
   const totalFailed = failedItems.length;
 
@@ -45,15 +57,20 @@ const App: React.FC = () => {
         } catch (e) { console.error('Failed to parse options', e); }
     }
 
-    // Load queue
-    const savedQueue = localStorage.getItem('chromaforge_queue');
-    if (savedQueue) {
-        try {
-            const parsedQueue = JSON.parse(savedQueue) as InputImage[];
-            // Hydrate queue (re-create simple props, file will be null but base64Data should be there)
-            setInputQueue(parsedQueue);
-        } catch (e) { console.error('Failed to parse queue', e); }
-    }
+    // Load queue from DB (Async)
+    loadQueueFromDB().then(queue => {
+        if (queue && queue.length > 0) {
+            // Hydrate queue: Reset stuck statuses
+            const sanitizedQueue = queue.map(img => {
+                if (img.status === 'ANALYZING' || img.status === 'PROCESSING') {
+                    // Reset to queued to allow user to restart processing for these interruptions
+                    return { ...img, status: 'QUEUED', completedVariations: 0 } as InputImage;
+                }
+                return img;
+            });
+            setInputQueue(sanitizedQueue);
+        }
+    });
   }, []);
 
   useEffect(() => {
@@ -61,19 +78,16 @@ const App: React.FC = () => {
   }, [options]);
 
   useEffect(() => {
-      try {
-          // When saving queue, we need to ensure we keep the base64 data but avoid circular refs
-          // InputImage interface already supports base64Data
-          localStorage.setItem('chromaforge_queue', JSON.stringify(inputQueue));
-      } catch (e) {
-          log('WARN', 'LocalStorage Quota Exceeded', { message: 'Could not save image queue persistence. Images might be too large.' });
-      }
+      // Debounce saving queue to DB
+      const timer = setTimeout(() => {
+          saveQueueToDB(inputQueue);
+      }, 500);
+      return () => clearTimeout(timer);
   }, [inputQueue]);
 
 
   // --- Initialization ---
   useEffect(() => {
-      // Check for API key status via aistudio helper or env
       const checkKey = async () => {
           if (process.env.API_KEY) {
               setApiKeyReady(true);
@@ -131,9 +145,32 @@ const App: React.FC = () => {
 
   const handleRemoveInput = (id: string) => {
     setInputQueue(prev => prev.filter(i => i.id !== id));
+    // Also remove failures related to this input
+    setFailedItems(prev => prev.filter(f => f.sourceImageId !== id));
+  };
+
+  const handleRerunInput = (id: string) => {
+      const input = inputQueue.find(i => i.id === id);
+      if (!input) return;
+
+      log('INFO', 'Rerunning input', { id, name: input.name });
+
+      // Reset the input state to QUEUED so the loop picks it up.
+      // We keep 'analysis' if it exists so we don't re-analyze.
+      setInputQueue(prev => prev.map(i => i.id === id ? {
+          ...i,
+          status: 'QUEUED',
+          completedVariations: 0,
+      } : i));
+
+      // Remove failures associated with this input
+      setFailedItems(prev => prev.filter(f => f.sourceImageId !== id));
+
+      if (!isProcessing) setIsProcessing(true);
   };
 
   const generateJobsForInput = (input: InputImage, generatedTitle: string): Job[] => {
+    // Generate permutations using global options
     const permutations = generatePermutations(options);
     return permutations.map(combo => ({
       id: crypto.randomUUID(),
@@ -142,17 +179,16 @@ const App: React.FC = () => {
       originalFilename: input.name,
       generatedTitle: generatedTitle,
       prompt: buildPromptFromCombo(combo),
-      optionsSummary: Object.values(combo).join(', '),
+      optionsSummary: Object.values(combo).filter(Boolean).join(', '),
       status: 'PENDING'
     }));
   };
 
   const autoDownloadImage = (imageUrl: string, prefix: string, optionsSummary: string) => {
-      // Clean options for filename
       const sanitizedOptions = optionsSummary
         .replace(/, /g, '_')
         .replace(/[^a-z0-9_]/gi, '')
-        .substring(0, 100); // Limit length
+        .substring(0, 100); 
       
       const sanitizedPrefix = prefix.replace(/[^a-z0-9]/gi, '_');
       const filename = `${sanitizedPrefix}_${sanitizedOptions}.png`;
@@ -190,19 +226,9 @@ const App: React.FC = () => {
             return;
         }
 
-        // Warning check
-        const queuedInputs = inputQueue.filter(i => i.status === 'QUEUED');
-        const permutationsCount = generatePermutations(options).length;
-        const projectedJobs = queuedInputs.length * permutationsCount;
-        
-        if (projectedJobs > 50) {
-            if (!confirm(`You are about to generate ${projectedJobs} images. This might take a while. Continue?`)) {
-                return;
-            }
-        }
-
+        // Just start. The loop will decide if there is work.
         setIsProcessing(true);
-        log('INFO', 'Processing started', {});
+        log('INFO', 'Processing started', { queued: inputQueue.filter(i => i.status === 'QUEUED').length });
     }
   };
 
@@ -213,15 +239,29 @@ const App: React.FC = () => {
       if (!isProcessing) return;
 
       const analyzeNext = async () => {
-          // Find first queued item that hasn't been analyzed/converted to jobs
           const nextInput = inputQueue.find(i => i.status === 'QUEUED');
           if (!nextInput) return;
 
-          // Set status to analyzing
+          // Check if analysis already exists (Rerun scenario) to skip unnecessary API calls
+          if (nextInput.analysis) {
+               log('INFO', 'Skipping Analysis (Cached)', { id: nextInput.id });
+               
+               const newJobs = generateJobsForInput(nextInput, nextInput.title || 'Untitled');
+               
+               setInputQueue(prev => prev.map(i => i.id === nextInput.id ? { 
+                  ...i, 
+                  status: 'PROCESSING',
+                  totalVariations: newJobs.length 
+               } : i));
+
+               setPendingJobs(prev => [...prev, ...newJobs]);
+               return; // Exit, job processing loop will pick up next
+          }
+
+          // Normal path: Analyze first
           setInputQueue(prev => prev.map(i => i.id === nextInput.id ? { ...i, status: 'ANALYZING' } : i));
 
           try {
-              // Get data (either from file or base64)
               const data = nextInput.file || nextInput.base64Data;
               if (!data) throw new Error("No image data found");
 
@@ -229,16 +269,8 @@ const App: React.FC = () => {
               const analysis = await analyzeImage(data, nextInput.type);
               
               log('INFO', 'Analysis Complete', { title: analysis.title });
-              downloadMarkdown(analysis);
+              downloadMarkdown(analysis); 
 
-              // Add selected options to the bottom of the MD file? 
-              // The user requested: "At the bottom, provide a list of selected options for this image."
-              // Since the image hasn't been processed with options yet (it will have MANY options),
-              // we can't really add *the* selected option. But we can add the permutation configuration.
-              // However, the prompt implies "for this image" meaning the variations. 
-              // Since the MD is generated once per input image, I will append the *Configuration* used.
-              
-              // Generate Jobs
               const newJobs = generateJobsForInput(nextInput, analysis.title);
               
               setInputQueue(prev => prev.map(i => i.id === nextInput.id ? { 
@@ -247,30 +279,27 @@ const App: React.FC = () => {
                   title: analysis.title,
                   analysis,
                   totalVariations: newJobs.length 
-              } : i));
+               } : i));
 
               setPendingJobs(prev => [...prev, ...newJobs]);
 
           } catch (e: any) {
               log('ERROR', 'Analysis Failed', e);
-              // Fail the input
               const failed: FailedItem = {
                   id: crypto.randomUUID(),
                   jobId: 'ANALYSIS',
                   sourceImageId: nextInput.id,
                   sourceImagePreview: nextInput.previewUrl,
                   optionsSummary: 'Analysis Phase',
-                  error: e.message,
-                  originalJob: {} as Job // Mock
+                  error: e.message
               };
               setFailedItems(prev => [failed, ...prev]);
-              setInputQueue(prev => prev.filter(i => i.id !== nextInput.id)); // Remove or mark failed? Remove for now.
+              // Mark as FAILED. This stops the loop for this item.
+              setInputQueue(prev => prev.map(i => i.id === nextInput.id ? { ...i, status: 'FAILED' } : i));
           }
       };
 
-      // If we have nothing pending but have queued items, try to analyze
       if (pendingJobs.length < MAX_CONCURRENT_JOBS && inputQueue.some(i => i.status === 'QUEUED')) {
-          // Check if we are already analyzing one (simple lock via analyzing status check in list)
           if (!inputQueue.some(i => i.status === 'ANALYZING')) {
               analyzeNext();
           }
@@ -284,11 +313,22 @@ const App: React.FC = () => {
     
     // Completion Check
     if (pendingJobs.length === 0 && processingJobs.length === 0 && !inputQueue.some(i => i.status === 'QUEUED' || i.status === 'ANALYZING')) {
-         const hasProcessingInputs = inputQueue.some(i => i.status === 'PROCESSING');
-         if (hasProcessingInputs) {
-             setInputQueue(prev => prev.map(i => i.status === 'PROCESSING' ? { ...i, status: 'COMPLETED' } : i));
+         // Check if we should turn off processing
+         const activeInputs = inputQueue.filter(i => i.status === 'PROCESSING');
+         
+         if (activeInputs.length > 0) {
+             setInputQueue(prev => prev.map(i => {
+                 if (i.status === 'PROCESSING') {
+                     // Check if this input has associated failures
+                     const hasFailures = failedItems.some(f => f.sourceImageId === i.id);
+                     return { ...i, status: hasFailures ? 'PARTIAL' : 'COMPLETED' };
+                 }
+                 return i;
+             }));
+         } else {
+             // Truly done
              setIsProcessing(false);
-             log('INFO', 'All jobs completed', {});
+             log('INFO', 'All jobs finished', {});
          }
          return;
     }
@@ -301,7 +341,7 @@ const App: React.FC = () => {
        processJob(job);
     }
 
-  }, [isProcessing, pendingJobs, processingJobs.length, inputQueue]);
+  }, [isProcessing, pendingJobs, processingJobs.length, inputQueue, failedItems]);
 
 
   const processJob = async (job: Job) => {
@@ -314,7 +354,6 @@ const App: React.FC = () => {
     }
 
     try {
-        // Use base64 data if file object is missing (reloaded from storage)
         const data = input.file || input.base64Data;
         if (!data) throw new Error("Image data missing");
 
@@ -360,14 +399,46 @@ const App: React.FC = () => {
 
   const handleRetry = (item: FailedItem) => {
       setFailedItems(prev => prev.filter(f => f.id !== item.id));
-      setPendingJobs(prev => [item.originalJob, ...prev]);
-      if (!isProcessing) setIsProcessing(true);
+      
+      if (item.jobId === 'ANALYSIS') {
+          // Retry analysis (entire input)
+          setInputQueue(prev => prev.map(i => i.id === item.sourceImageId ? { ...i, status: 'QUEUED' } : i));
+          if (!isProcessing) setIsProcessing(true);
+      } else if (item.originalJob) {
+          // Retry specific job
+          setPendingJobs(prev => [item.originalJob!, ...prev]);
+          
+          // Ensure input is marked as processing so loop continues
+          setInputQueue(prev => prev.map(i => i.id === item.sourceImageId ? { 
+              ...i, 
+              status: 'PROCESSING' 
+          } : i));
+          
+          if (!isProcessing) setIsProcessing(true);
+      }
   };
 
   const handleRetryAll = () => {
-      const jobsToRetry = failedItems.map(f => f.originalJob).filter(j => j.id); // Filter out mock analysis jobs
+      const analysisFailures = failedItems.filter(f => f.jobId === 'ANALYSIS');
+      const jobFailures = failedItems.filter(f => f.jobId !== 'ANALYSIS' && f.originalJob);
+      
       setFailedItems([]);
-      setPendingJobs(prev => [...prev, ...jobsToRetry]);
+
+      // Reset analysis inputs to QUEUED
+      if (analysisFailures.length > 0) {
+          const ids = new Set(analysisFailures.map(f => f.sourceImageId));
+          setInputQueue(prev => prev.map(i => ids.has(i.id) ? { ...i, status: 'QUEUED' } : i));
+      }
+
+      // Re-queue generation jobs
+      if (jobFailures.length > 0) {
+          const jobsToRetry = jobFailures.map(f => f.originalJob!);
+          setPendingJobs(prev => [...prev, ...jobsToRetry]);
+          
+          const affectedInputIds = new Set(jobsToRetry.map(j => j.sourceImageId));
+          setInputQueue(prev => prev.map(i => affectedInputIds.has(i.id) ? { ...i, status: 'PROCESSING' } : i));
+      }
+
       if (!isProcessing) setIsProcessing(true);
   };
 
@@ -376,8 +447,16 @@ const App: React.FC = () => {
   };
 
   const handleClearGallery = () => {
-      if (confirm("Are you sure you want to clear all generated images?")) {
+      if (generatedImages.length === 0) return;
+      
+      if (clearConfirmation) {
           setGeneratedImages([]);
+          setClearConfirmation(false);
+          log('INFO', 'Gallery cleared by user', {});
+      } else {
+          setClearConfirmation(true);
+          // Auto reset after 3 seconds
+          setTimeout(() => setClearConfirmation(false), 3000);
       }
   };
   
@@ -398,6 +477,27 @@ const App: React.FC = () => {
       }
   };
 
+  // --- Status Derivation ---
+  let currentStatusTitle = 'SYSTEM IDLE';
+  let currentStatusDetail = 'Ready to process queue.';
+
+  if (isProcessing) {
+    const analyzing = inputQueue.find(i => i.status === 'ANALYZING');
+    if (analyzing) {
+        currentStatusTitle = 'ANALYZING IMAGE';
+        currentStatusDetail = `Detecting objects & safety in "${analyzing.name}"...`;
+    } else if (processingJobs.length > 0) {
+        currentStatusTitle = `GENERATING (${processingJobs.length} active)`;
+        currentStatusDetail = `Rendering: ${processingJobs[0].optionsSummary}`;
+    } else if (inputQueue.some(i => i.status === 'QUEUED')) {
+            currentStatusTitle = 'PREPARING';
+            currentStatusDetail = 'Loading next item...';
+    } else {
+            currentStatusTitle = 'FINISHING';
+            currentStatusDetail = 'Finalizing batch...';
+    }
+  }
+
   return (
     <div className="flex flex-col h-screen bg-slate-950 text-slate-200 font-sans">
       
@@ -414,7 +514,7 @@ const App: React.FC = () => {
         </div>
 
         {/* Detailed Stats in Header */}
-        <div className="hidden lg:flex flex-1 mx-8 bg-slate-800/50 border border-slate-700/50 rounded-lg p-1.5 items-center justify-around text-xs font-mono">
+        <div className="hidden lg:flex flex-1 mx-8 bg-slate-800/50 border border-slate-700/50 rounded-lg p-1.5 items-center justify-around text-xs font-mono relative overflow-hidden">
             <div className="flex flex-col items-center leading-none">
                 <span className="text-slate-500 text-[9px]">TOTAL VARIANTS</span>
                 <span className="text-slate-300 font-bold">{totalVariationsScheduled}</span>
@@ -430,11 +530,22 @@ const App: React.FC = () => {
                 <span className="text-red-400 font-bold">{totalFailed}</span>
             </div>
             <div className="w-px h-6 bg-slate-700" />
-            <div className="flex flex-col px-4 min-w-[200px] max-w-[400px]">
-                <span className="text-amber-500 text-[9px] uppercase">Processing</span>
-                <span className="text-amber-300 truncate">
-                    {processingJobs.length > 0 ? processingJobs[0].optionsSummary : (isProcessing ? 'Waiting for jobs...' : 'Idle')}
-                </span>
+            
+            {/* Status Section */}
+            <div className="flex flex-col px-4 flex-1 min-w-[250px]">
+                 <div className="flex items-center gap-2 mb-0.5">
+                     {isProcessing ? (
+                         <Loader2 size={12} className="animate-spin text-amber-500" />
+                     ) : (
+                         <Activity size={12} className="text-slate-600" />
+                     )}
+                     <span className={`text-[10px] font-bold uppercase tracking-wider ${isProcessing ? 'text-amber-500' : 'text-slate-500'}`}>
+                        {currentStatusTitle}
+                     </span>
+                 </div>
+                 <div className="text-amber-100 text-xs truncate font-mono h-4">
+                    {currentStatusDetail}
+                 </div>
             </div>
         </div>
 
@@ -468,8 +579,13 @@ const App: React.FC = () => {
 
              <div className="w-px h-8 bg-slate-800 mx-2" />
 
-             <button onClick={() => setIsOptionsOpen(true)} className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors" title="Configuration">
-                 <Settings size={20} />
+             <button 
+                onClick={() => setIsOptionsOpen(true)} 
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold shadow-lg transition-all border border-indigo-500/50" 
+                title="Configuration"
+             >
+                 <Settings size={18} />
+                 <span className="hidden xl:inline">Configure Generation</span>
              </button>
              <button onClick={() => setIsConsoleOpen(true)} className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors" title="System Console">
                  <Terminal size={20} />
@@ -486,19 +602,30 @@ const App: React.FC = () => {
             activeJobs={processingJobs}
             onAddFiles={handleAddFiles}
             onRemove={handleRemoveInput}
+            onRerun={handleRerunInput}
         />
 
         {/* Center: Gallery */}
         <div className="flex-1 bg-slate-950 flex flex-col min-w-0">
            {/* Info Bar */}
-           <div className="h-10 border-b border-slate-800 bg-slate-925 flex items-center px-4 justify-between text-xs text-slate-500">
+           <div className="h-10 border-b border-slate-800 bg-slate-900 flex items-center px-4 justify-between text-xs text-slate-500">
                <span>
                   Queue: {pendingJobs.length} jobs
                </span>
                <div className="flex gap-4">
                    {generatedImages.length > 0 && (
-                       <button onClick={handleClearGallery} className="flex items-center gap-1 hover:text-red-400 transition-colors">
-                           <Trash2 size={12} /> Clear Gallery
+                       <button 
+                        onClick={handleClearGallery} 
+                        className={`flex items-center gap-1 transition-colors cursor-pointer ${
+                            clearConfirmation ? 'text-red-500 font-bold' : 'text-slate-400 hover:text-red-400'
+                        }`}
+                        type="button"
+                       >
+                           {clearConfirmation ? (
+                               <>Confirm Clear?</>
+                           ) : (
+                               <><Trash2 size={12} /> Clear Gallery</>
+                           )}
                        </button>
                    )}
                    <span>

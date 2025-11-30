@@ -1,4 +1,5 @@
 
+
 export type LogLevel = 'INFO' | 'WARN' | 'ERROR' | 'GEMINI_REQ' | 'GEMINI_RES' | 'IMAGEN_REQ' | 'IMAGEN_RES';
 
 export interface LogEntry {
@@ -16,6 +17,7 @@ export interface AppOptions {
   hair: string[];
   clothes: string[];
   shoes: string[];
+  species: string[];
   technology: string[];
   environment: string[];
   timeOfDay: string[];
@@ -32,11 +34,11 @@ export interface ImageAnalysis {
 export interface InputImage {
   id: string;
   file: File | null; // Null if loaded from storage and file object not reconstructed yet, but we store base64
-  base64Data?: string; // For local storage persistence
+  base64Data?: string; // For persistence
   name: string;
   type: string;
   previewUrl: string;
-  status: 'QUEUED' | 'ANALYZING' | 'PROCESSING' | 'COMPLETED' | 'PARTIAL';
+  status: 'QUEUED' | 'ANALYZING' | 'PROCESSING' | 'COMPLETED' | 'PARTIAL' | 'FAILED';
   totalVariations: number;
   completedVariations: number;
   title?: string; // Generated title
@@ -71,5 +73,5 @@ export interface FailedItem {
   sourceImagePreview: string;
   optionsSummary: string;
   error: string;
-  originalJob: Job;
+  originalJob?: Job;
 }

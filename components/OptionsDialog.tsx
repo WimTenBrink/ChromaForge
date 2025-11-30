@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, User, Zap, Map as MapIcon, Clock } from 'lucide-react';
+import { X, User, Zap, Map as MapIcon, Clock, Sparkles } from 'lucide-react';
 import { AppOptions } from '../types';
 import { OPTION_LISTS, DEFAULT_OPTIONS } from '../constants';
 
@@ -11,7 +11,7 @@ interface Props {
 }
 
 const OptionsDialog: React.FC<Props> = ({ isOpen, onClose, options, setOptions }) => {
-  const [activeTab, setActiveTab] = useState<'CHAR' | 'TECH' | 'ENV' | 'TIME'>('CHAR');
+  const [activeTab, setActiveTab] = useState<'CHAR' | 'SPECIES' | 'TECH' | 'ENV' | 'TIME'>('CHAR');
 
   if (!isOpen) return null;
 
@@ -40,12 +40,12 @@ const OptionsDialog: React.FC<Props> = ({ isOpen, onClose, options, setOptions }
               checked={options[category].includes(item)}
               onChange={() => toggleOption(category, item)}
             />
-            <div className={`w-4 h-4 rounded border flex items-center justify-center ${
+            <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${
                 options[category].includes(item) ? 'bg-emerald-500 border-emerald-500' : 'border-slate-500'
             }`}>
                {options[category].includes(item) && <div className="w-2 h-2 bg-black rounded-sm" />} 
             </div>
-            <span className="text-sm select-none">{item}</span>
+            <span className="text-sm select-none truncate" title={item}>{item}</span>
           </label>
         ))}
       </div>
@@ -71,9 +71,10 @@ const OptionsDialog: React.FC<Props> = ({ isOpen, onClose, options, setOptions }
         <div className="flex flex-1 overflow-hidden">
           
           {/* Sidebar Tabs */}
-          <div className="w-64 bg-slate-950 border-r border-slate-800 flex flex-col pt-4">
+          <div className="w-64 bg-slate-950 border-r border-slate-800 flex flex-col pt-4 overflow-y-auto">
              {[
                { id: 'CHAR', label: 'Characters', icon: User },
+               { id: 'SPECIES', label: 'Species', icon: Sparkles },
                { id: 'TECH', label: 'Technology', icon: Zap },
                { id: 'ENV', label: 'Environment', icon: MapIcon },
                { id: 'TIME', label: 'Time of Day', icon: Clock },
@@ -103,6 +104,11 @@ const OptionsDialog: React.FC<Props> = ({ isOpen, onClose, options, setOptions }
                 {renderCheckboxes('hair', 'Hair Color')}
                 {renderCheckboxes('clothes', 'Attire')}
                 {renderCheckboxes('shoes', 'Footwear')}
+              </div>
+            )}
+            {activeTab === 'SPECIES' && (
+              <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+                 {renderCheckboxes('species', 'Species')}
               </div>
             )}
             {activeTab === 'TECH' && (
