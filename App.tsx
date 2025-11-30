@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Play, Pause, Settings, Terminal, Plus, Shield, ShieldCheck, Trash2, Loader2, AlertTriangle, Activity } from 'lucide-react';
 import InputList from './components/InputList';
@@ -5,7 +6,7 @@ import FailedList from './components/FailedList';
 import OptionsDialog from './components/OptionsDialog';
 import ConsoleDialog from './components/ConsoleDialog';
 import ImageDetailDialog from './components/ImageDetailDialog';
-import { AppOptions, InputImage, Job, GeneratedImage, FailedItem, ImageAnalysis } from './types';
+import { AppOptions, InputImage, Job, GeneratedImage, FailedItem, ImageAnalysis, GlobalConfig } from './types';
 import { DEFAULT_OPTIONS, MAX_CONCURRENT_JOBS } from './constants';
 import { generatePermutations, buildPromptFromCombo } from './utils/combinatorics';
 import { processImage, analyzeImage } from './services/geminiService';
@@ -15,6 +16,8 @@ import { saveQueueToDB, loadQueueFromDB } from './services/db';
 const App: React.FC = () => {
   // --- State ---
   const [options, setOptions] = useState<AppOptions>(DEFAULT_OPTIONS);
+  const [globalConfig, setGlobalConfig] = useState<GlobalConfig | null>(null);
+  
   const [inputQueue, setInputQueue] = useState<InputImage[]>([]);
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
   const [failedItems, setFailedItems] = useState<FailedItem[]>([]);
@@ -33,8 +36,13 @@ const App: React.FC = () => {
   // Statistics for header
   const getPermutationCount = (opts: AppOptions) => {
     return (Object.keys(opts) as Array<keyof AppOptions>).reduce((acc, key) => {
-        const len = opts[key].length;
-        return acc * (len > 0 ? len : 1);
+        const val = opts[key];
+        // Only check length for arrays (skip boolean flags)
+        if (Array.isArray(val)) {
+            const len = val.length;
+            return acc * (len > 0 ? len : 1);
+        }
+        return acc;
     }, 1);
   };
 
@@ -49,13 +57,27 @@ const App: React.FC = () => {
   // --- Persistence ---
 
   useEffect(() => {
-    // Load options
+    // Load options from localStorage
     const savedOptions = localStorage.getItem('chromaforge_options');
     if (savedOptions) {
         try {
-            setOptions(JSON.parse(savedOptions));
+            const parsed = JSON.parse(savedOptions);
+            // Merge with default to ensure new keys from potential schema updates are present
+            setOptions({ ...DEFAULT_OPTIONS, ...parsed });
         } catch (e) { console.error('Failed to parse options', e); }
     }
+
+    // Load Global Config from JSON file
+    fetch('./options.json')
+      .then(res => res.json())
+      .then((data: GlobalConfig) => {
+          setGlobalConfig(data);
+          log('INFO', 'Configuration loaded', {});
+      })
+      .catch(err => {
+          log('ERROR', 'Failed to load options.json', err);
+          alert("Failed to load configuration file. Check console.");
+      });
 
     // Load queue from DB (Async)
     loadQueueFromDB().then(queue => {
@@ -180,6 +202,7 @@ const App: React.FC = () => {
       generatedTitle: generatedTitle,
       prompt: buildPromptFromCombo(combo),
       optionsSummary: Object.values(combo).filter(Boolean).join(', '),
+      aspectRatio: combo.aspectRatio,
       status: 'PENDING'
     }));
   };
@@ -357,7 +380,7 @@ const App: React.FC = () => {
         const data = input.file || input.base64Data;
         if (!data) throw new Error("Image data missing");
 
-        const imageUrl = await processImage(data, job.prompt, input.type);
+        const imageUrl = await processImage(data, job.prompt, input.type, job.aspectRatio);
         
         const generated: GeneratedImage = {
             id: crypto.randomUUID(),
@@ -581,11 +604,16 @@ const App: React.FC = () => {
 
              <button 
                 onClick={() => setIsOptionsOpen(true)} 
-                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold shadow-lg transition-all border border-indigo-500/50" 
+                disabled={!globalConfig}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold shadow-lg transition-all border ${
+                    globalConfig 
+                    ? 'bg-indigo-600 hover:bg-indigo-500 text-white border-indigo-500/50' 
+                    : 'bg-slate-800 text-slate-500 border-slate-700 cursor-wait'
+                }`}
                 title="Configuration"
              >
                  <Settings size={18} />
-                 <span className="hidden xl:inline">Configure Generation</span>
+                 <span className="hidden xl:inline">{globalConfig ? 'Configure Generation' : 'Loading Config...'}</span>
              </button>
              <button onClick={() => setIsConsoleOpen(true)} className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors" title="System Console">
                  <Terminal size={20} />
@@ -679,6 +707,7 @@ const App: React.FC = () => {
         onClose={() => setIsOptionsOpen(false)}
         options={options}
         setOptions={setOptions}
+        config={globalConfig}
       />
       
       <ConsoleDialog 

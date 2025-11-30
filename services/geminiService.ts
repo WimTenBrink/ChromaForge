@@ -1,4 +1,5 @@
 
+
 import { GoogleGenAI, Schema, Type } from "@google/genai";
 import { log } from "./logger";
 import { ImageAnalysis } from "../types";
@@ -37,8 +38,8 @@ const convertToPng = (base64Data: string, inputMimeType: string): Promise<string
   });
 };
 
-export const processImage = async (file: File | string, prompt: string, mimeTypeInput?: string): Promise<string> => {
-  log('INFO', 'Initializing Gemini Request', { model: 'gemini-2.5-flash-image' });
+export const processImage = async (file: File | string, prompt: string, mimeTypeInput?: string, aspectRatio?: string): Promise<string> => {
+  log('INFO', 'Initializing Gemini Request', { model: 'gemini-3-pro-image-preview', aspectRatio });
 
   // API Key Check
   const apiKey = process.env.API_KEY;
@@ -60,8 +61,8 @@ export const processImage = async (file: File | string, prompt: string, mimeType
         base64Image = file;
     }
 
-    const requestPayload = {
-      model: 'gemini-2.5-flash-image',
+    const requestPayload: any = {
+      model: 'gemini-3-pro-image-preview',
       contents: {
         parts: [
           {
@@ -74,13 +75,28 @@ export const processImage = async (file: File | string, prompt: string, mimeType
             text: prompt
           }
         ]
+      },
+      config: {
+          imageConfig: {
+              imageSize: '4K',
+          }
       }
     };
+
+    // Configure Aspect Ratio if specified and not 'Original'
+    const supportedRatios = ["1:1", "3:4", "4:3", "9:16", "16:9"];
+    if (aspectRatio && aspectRatio !== 'Original' && supportedRatios.includes(aspectRatio)) {
+        requestPayload.config.imageConfig.aspectRatio = aspectRatio;
+    } else if (aspectRatio && aspectRatio !== 'Original') {
+         // Log warning for unsupported ratio, the prompt text will attempt to handle it
+         log('WARN', 'Unsupported Aspect Ratio config for this model, relying on prompt text', { aspectRatio });
+    }
 
     log('GEMINI_REQ', 'Sending Generate Content Request', { 
        model: requestPayload.model,
        promptLength: prompt.length,
-       imageSize: base64Image.length
+       imageSize: base64Image.length,
+       config: requestPayload.config
     });
 
     const response = await ai.models.generateContent(requestPayload);

@@ -70,7 +70,7 @@ const ImageDetailDialog: React.FC<Props> = ({ image, onClose, onNext, onPrev, ha
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-sm">
       <div 
-        className="relative w-[96vw] h-[95vh] bg-slate-900 border border-slate-700 rounded-lg overflow-hidden flex flex-col shadow-2xl"
+        className="relative w-[90vw] h-[90vh] bg-slate-900 border border-slate-700 rounded-lg overflow-hidden flex flex-col shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

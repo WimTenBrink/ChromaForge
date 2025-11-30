@@ -1,0 +1,106 @@
+{
+  "speciesGroups": {
+    "Star Wars": [
+      "Twi'lek", "Togruta", "Zabrak", "Wookiee", "Mandalorian", "Rodian", "Kel Dor", "Mirialan", "Mon Calamari", "Jawa", "Ewok", "Chiss"
+    ],
+    "Star Trek": [
+      "Vulcan", "Klingon", "Andorian", "Borg", "Trill", "Orion", "Ferengi", "Romulan", "Cardassian", "Bajoran", "Gorn"
+    ],
+    "Dungeons & Dragons": [
+      "Elf", "Drow", "Orc", "Tiefling", "Dragonborn", "Tabaxi", "Gnome", "Dwarf", "Half-Orc", "Genasi", "Goblin", "Halfling", "Aasimar", "Firbolg"
+    ],
+    "Lord of the Rings": [
+      "Hobbit", "Uruk-hai", "High Elf", "Wood Elf"
+    ],
+    "Avatar": [
+      "Na'vi (Forest)", "Na'vi (Reef)"
+    ],
+    "Mass Effect": [
+      "Asari", "Turian", "Krogan", "Salarian", "Quarian", "Drell"
+    ],
+    "Halo": [
+      "Sangheili (Elite)", "Spartan", "Unggoy (Grunt)"
+    ],
+    "Warcraft": [
+      "Night Elf", "Draenei", "Blood Elf", "Tauren", "Undead", "Troll", "Worgen"
+    ],
+    "Elder Scrolls": [
+      "Khajiit", "Argonian", "Dunmer", "Altmer", "Bosmer"
+    ],
+    "Generic / Sci-Fi / Horror": [
+      "Human", "Cyborg", "Android", "Zombie", "Vampire", "Werewolf", "Fairy", "Mermaid", "Angel", "Demon", "Succubus", "Centaur", "Alien Grey", "Reptilian"
+    ]
+  },
+  "environmentGroups": {
+    "Indoors": [
+      "Living Room", "Library", "Laboratory", "Tavern", "Throne Room", "Bedroom", "Kitchen", "Office", "Temple Interior", "Cave", "Bunker"
+    ],
+    "Outdoors (Nature)": [
+      "Forest", "Jungle", "Desert", "Tundra", "Mountain Peak", "River Bank", "Beach", "Meadow", "Swamp", "Canyon", "Volcano"
+    ],
+    "Outdoors (Urban)": [
+      "City Street", "Village Square", "Cyberpunk Alley", "Ruins", "Skyscraper Rooftop", "Market", "Slums", "Industrial Zone"
+    ],
+    "Space": [
+      "Space Station", "Spaceship Bridge", "Moon Surface", "Alien Planet", "Deep Space", "Nebula", "Asteroid Field"
+    ],
+    "Fantasy": [
+      "Floating Island", "Enchanted Forest", "Crystal Cave", "Wizard's Tower", "Dungeon", "Hellscape", "Heaven"
+    ],
+    "Sci-Fi": [
+      "Cryo Chamber", "Reactor Core", "Holodeck", "Server Room", "Robot Factory"
+    ],
+    "Historical": [
+      "Colosseum", "Pyramid", "Castle Courtyard", "Saloon", "Trench"
+    ],
+    "Underwater": [
+      "Coral Reef", "Deep Sea", "Sunken Ship", "Atlantis"
+    ],
+    "Abstract / Studio": [
+      "White Background", "Green Screen", "Studio Lighting", "Abstract Geometric"
+    ]
+  },
+  "itemGroups": {
+    "Weapons": [
+      "Sword", "Blaster", "Bow", "Staff", "Axe", "Shield", "Lightsaber", "Dagger", "Spear", "Crossbow"
+    ],
+    "Tools": [
+      "Hammer", "Wrench", "Scanner", "Tablet", "Scroll", "Map", "Compass", "Flashlight", "Binoculars", "Pickaxe"
+    ],
+    "Technology": [
+      "Hologram", "Datapad", "Robot Companion", "Drone", "Communicator"
+    ],
+    "Magical": [
+      "Wand", "Crystal Orb", "Potion", "Amulet", "Grimoire", "Rune Stone", "Enchanted Ring"
+    ],
+    "Accessories": [
+      "Backpack", "Cape", "Hat", "Glasses", "Jewelry", "Cybernetics", "Mask", "Crown"
+    ],
+    "Decorations": [
+      "Flowers", "Skull", "Candle", "Flag", "Lantern", "Musical Instrument"
+    ]
+  },
+  "lists": {
+    "gender": ["Male", "Female", "Intersex", "Non-binary", "Androgynous"],
+    "age": ["Child", "Preteen", "Teen", "Young Adult", "Adult", "Mature", "Old", "Ancient"],
+    "skin": ["Albino", "Pale", "Fair", "Tan", "Brown", "Dark Brown", "Black", "Blueish", "Greenish", "Reddish", "Metallic", "Bioluminescent", "Transparent"],
+    "hair": ["Blonde", "Brunette", "Black", "Red", "White", "Grey", "Blue", "Pink", "Green", "Purple", "Rainbow", "Bald", "Fiery"],
+    "clothes": ["Nude (Implied)", "Underwear", "Casual", "Formal", "Uniform", "Space Suit", "Armor", "Fantasy Robes", "Cyberpunk Gear", "Rags", "Swimwear", "Steampunk Attire", "Tribal Garb", "Victorian", "Tactical Gear"],
+    "shoes": ["Barefoot", "Barefoot with Anklets", "Sandals", "Sneakers", "Shoes", "Boots", "High Heels", "Space Boots", "Greaves", "Wraps", "Magnetic Boots"],
+    "technology": ["Stone Age", "Bronze Age", "Iron Age", "Medieval", "Renaissance", "Industrial", "Contemporary", "Near Future", "Cyberpunk", "Far Future", "Intergalactic", "Post-Apocalyptic"],
+    "timeOfDay": ["Dawn", "Morning", "Noon", "Afternoon", "Golden Hour", "Evening", "Sunset", "Blue Hour", "Twilight", "Midnight", "Eclipse"],
+    "aspectRatio": ["Original", "16:9", "4:3", "3:2", "1:1", "2:3", "3:4", "9:16"],
+    "artStyle": [
+        "Photorealistic", "Oil Painting", "Watercolor", "Cyberpunk", "Steampunk", "Ukiyo-e", "Noir", "Gothic", "Art Nouveau", "Surrealism", "Pop Art", "Concept Art", "Studio Ghibli Style", "Pixar Style", "Anime", "Comic Book", "Retro 80s"
+    ],
+    "lighting": [
+        "Natural", "Studio", "Cinematic", "Neon", "Bioluminescent", "Candlelight", "Moonlight", "Volumetric Fog", "Rim Lighting", "Softbox", "Hard Shadows", "Rembrandt"
+    ],
+    "camera": [
+        "Wide Angle", "Telephoto", "Macro", "Fisheye", "Drone View", "Low Angle", "Dutch Angle", "Bokeh", "Over-the-shoulder"
+    ],
+    "mood": [
+        "Happy", "Melancholic", "Eerie", "Heroic", "Romantic", "Chaotic", "Peaceful", "Mysterious", "Aggressive", "Whimsical", "Epic"
+    ]
+  }
+}
