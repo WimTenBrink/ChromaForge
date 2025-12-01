@@ -24,7 +24,9 @@ export const DEFAULT_OPTIONS: AppOptions = {
   decorations: [],
   
   replaceBackground: false,
-  removeCharacters: false
+  removeCharacters: false,
+  
+  combinedGroups: []
 };
 
 export const MAX_CONCURRENT_JOBS = 2;

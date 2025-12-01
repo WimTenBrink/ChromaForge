@@ -80,6 +80,16 @@
       "Flowers", "Skull", "Candle", "Flag", "Lantern", "Musical Instrument"
     ]
   },
+  "attireGroups": {
+    "Casual": ["T-Shirt & Jeans", "Hoodie & Sweatpants", "Summer Dress", "Oversized Sweater", "Tank Top & Shorts", "Flannel Shirt", "Leather Jacket"],
+    "Office / Formal": ["Business Suit", "Evening Gown", "Blazer & Skirt", "Tuxedo", "Cocktail Dress", "Pencil Skirt & Blouse", "Waistcoat"],
+    "Uniforms": ["Nurse Uniform", "Police Uniform", "School Uniform", "Chef's Whites", "Military Fatigues", "Pilot Suit", "Lab Coat", "Maid Outfit"],
+    "Armor / Fantasy": ["Plate Mail", "Leather Armor", "Chainmail", "Cybernetic Suit", "Power Armor", "Wizard Robes", "Thief Leathers", "Paladin Armor"],
+    "Beach / Swim": ["Bikini", "Swim Trunks", "One-Piece Swimsuit", "Sarong", "Wetsuit"],
+    "Implied Nudity / Artistic": [
+      "Nude (Implied)", "Body Paint (Gold)", "Body Paint (Tribal)", "Body Paint (Silver)", "Strategic Jewelry", "Silk Sheets Only", "Flowers & Vines", "Shadows & Silhouette", "Mud & Warpaint", "Chained"
+    ]
+  },
   "decorationGroups": {
     "Tattoos": ["Tribal Tattoo", "Sleeve Tattoo", "Face Tattoo", "Minimalist Tattoo", "Dragon Tattoo", "Bio-mech Tattoo", "Henna", "Yakuza Style"],
     "Piercings": ["Nose Ring", "Lip Piercing", "Brow Piercing", "Ear Gauge", "Multiple Ear Piercings", "Septum Ring", "Industrial Piercing"],
@@ -92,8 +102,7 @@
     "age": ["Child", "Preteen", "Teen", "Young Adult", "Adult", "Mature", "Old", "Ancient"],
     "skin": ["Albino", "Pale", "Fair", "Tan", "Brown", "Dark Brown", "Black", "Blueish", "Greenish", "Reddish", "Metallic", "Bioluminescent", "Transparent"],
     "hair": ["Blonde", "Brunette", "Black", "Red", "White", "Grey", "Blue", "Pink", "Green", "Purple", "Rainbow", "Bald", "Fiery", "Gold", "Silver", "Copper", "Platinum"],
-    "clothes": ["Nude (Implied)", "Casual", "Formal", "Uniform", "Space Suit", "Armor", "Fantasy Robes", "Cyberpunk Gear", "Rags", "Swimwear", "Steampunk Attire", "Tribal Garb", "Victorian", "Tactical Gear"],
-    "shoes": ["Barefoot with Anklets", "Sandals", "Sneakers", "Shoes", "Boots", "High Heels", "Space Boots", "Greaves", "Wraps", "Magnetic Boots"],
+    "shoes": ["Sandals", "Sneakers", "Dress Shoes", "Boots", "High Heels", "Space Boots", "Greaves", "Leg Wraps", "Magnetic Boots", "Barefoot", "Barefoot/Anklets", "Barefoot/Chained"],
     "technology": ["Stone Age", "Bronze Age", "Iron Age", "Medieval", "Renaissance", "Industrial", "Contemporary", "Near Future", "Cyberpunk", "Far Future", "Intergalactic", "Post-Apocalyptic"],
     "timeOfDay": ["Dawn", "Morning", "Noon", "Afternoon", "Golden Hour", "Evening", "Sunset", "Blue Hour", "Twilight", "Midnight", "Eclipse"],
     "weather": ["Clear / Sunny", "Partly Cloudy", "Overcast", "Rain / Drizzle", "Thunderstorm", "Snowing / Blizzard", "Foggy / Misty", "Windy", "Hail", "Dust Storm"],

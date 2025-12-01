@@ -1,7 +1,7 @@
 
 
 import React, { useState, useMemo } from 'react';
-import { X, User, Zap, Map as MapIcon, Clock, Sparkles, Monitor, Package, Sliders, Palette, Lightbulb, Camera, Smile, Cloud, Brush, Calculator, Ban } from 'lucide-react';
+import { X, User, Zap, Map as MapIcon, Clock, Sparkles, Monitor, Package, Sliders, Palette, Lightbulb, Camera, Smile, Cloud, Brush, Calculator, Ban, Shirt, CheckSquare, Square, Layers } from 'lucide-react';
 import { AppOptions, GlobalConfig } from '../types';
 import { DEFAULT_OPTIONS } from '../constants';
 
@@ -14,13 +14,21 @@ interface Props {
 }
 
 const OptionsDialog: React.FC<Props> = ({ isOpen, onClose, options, setOptions, config }) => {
-  const [activeTab, setActiveTab] = useState<'CHAR' | 'SPECIES' | 'ITEMS' | 'DECOR' | 'TECH' | 'ENV' | 'TIME' | 'WEATHER' | 'RATIO' | 'STYLE' | 'LIGHTING' | 'CAMERA' | 'MOOD' | 'CUSTOM'>('CHAR');
+  const [activeTab, setActiveTab] = useState<'CHAR' | 'ATTIRE' | 'SPECIES' | 'ITEMS' | 'DECOR' | 'TECH' | 'ENV' | 'TIME' | 'WEATHER' | 'RATIO' | 'STYLE' | 'LIGHTING' | 'CAMERA' | 'MOOD' | 'CUSTOM'>('CHAR');
 
   const permutationCount = useMemo(() => {
     return (Object.keys(options) as Array<keyof AppOptions>).reduce((acc, key) => {
+        // Skip control keys
+        if (key === 'combinedGroups') return acc;
+        
         const val = options[key];
         // Only check length for arrays (skip boolean flags)
         if (Array.isArray(val)) {
+            // If this category is combined, it only counts as 1 permutation regardless of how many items are selected (if > 0)
+            if (options.combinedGroups.includes(key)) {
+                return acc * (val.length > 0 ? 1 : 1);
+            }
+            
             const len = val.length;
             return acc * (len > 0 ? len : 1);
         }
@@ -59,6 +67,17 @@ const OptionsDialog: React.FC<Props> = ({ isOpen, onClose, options, setOptions, 
       });
   };
 
+  const toggleCombinedGroup = (category: keyof AppOptions) => {
+      const current = options.combinedGroups || [];
+      const exists = current.includes(category);
+      setOptions({
+          ...options,
+          combinedGroups: exists 
+            ? current.filter(c => c !== category)
+            : [...current, category]
+      });
+  };
+
   const renderOptionItem = (category: keyof AppOptions, item: string) => {
       const isSelected = (options[category] as string[]).includes(item);
       return (
@@ -83,6 +102,32 @@ const OptionsDialog: React.FC<Props> = ({ isOpen, onClose, options, setOptions, 
       );
   };
 
+  const renderCombineHeader = (category: keyof AppOptions, title: string) => {
+      const isCombined = options.combinedGroups?.includes(category);
+      const selectedCount = (options[category] as string[])?.length || 0;
+
+      return (
+        <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-800">
+            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">{title}</h3>
+            
+            <label className={`flex items-center gap-2 text-xs cursor-pointer transition-colors ${
+                isCombined ? 'text-emerald-400' : 'text-slate-500 hover:text-slate-300'
+            }`}>
+                <input 
+                    type="checkbox" 
+                    className="hidden" 
+                    checked={isCombined} 
+                    onChange={() => toggleCombinedGroup(category)}
+                />
+                <div className="flex items-center gap-1.5">
+                    {isCombined ? <CheckSquare size={14} /> : <Square size={14} />}
+                    <span>Combine Selections</span>
+                </div>
+            </label>
+        </div>
+      );
+  };
+
   const renderCheckboxes = (category: keyof AppOptions, title: string, listSource?: string[]) => {
     // Determine the source array from config based on category key
     let items: string[] = [];
@@ -93,22 +138,24 @@ const OptionsDialog: React.FC<Props> = ({ isOpen, onClose, options, setOptions, 
     }
 
     return (
-        <div className="mb-6">
-        <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">{title}</h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {items.map(item => renderOptionItem(category, item))}
-        </div>
+        <div className="mb-8">
+            {renderCombineHeader(category, title)}
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {items.map(item => renderOptionItem(category, item))}
+            </div>
         </div>
     );
   };
 
-  const renderGroups = (groups: Record<string, string[]>, category: keyof AppOptions) => (
-      <div className="space-y-8">
+  const renderGroups = (groups: Record<string, string[]>, category: keyof AppOptions, title: string) => (
+      <div className="space-y-6">
+          {renderCombineHeader(category, title)}
+          
           {Object.entries(groups).map(([groupName, items]) => (
               <div key={groupName}>
-                  <h3 className="text-sm font-bold text-emerald-500/80 uppercase tracking-wider mb-3 sticky top-0 bg-slate-900/95 py-2 backdrop-blur z-10">
+                  <h4 className="text-xs font-bold text-emerald-500/80 uppercase tracking-wider mb-3 sticky top-0 bg-slate-900/95 py-2 backdrop-blur z-10 pl-1 border-l-2 border-emerald-900/50">
                       {groupName}
-                  </h3>
+                  </h4>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                       {items.map(item => renderOptionItem(category, item))}
                   </div>
@@ -151,17 +198,26 @@ const OptionsDialog: React.FC<Props> = ({ isOpen, onClose, options, setOptions, 
             {/* Selected Options Display */}
             <div className="px-6 pb-4 flex flex-wrap gap-2 max-h-32 overflow-y-auto">
                 {Object.keys(options).map((key) => {
+                    if (key === 'combinedGroups') return null; // Don't show control key
+                    
                     const k = key as keyof AppOptions;
                     const val = options[k];
-                    
+                    const isCombined = options.combinedGroups?.includes(k);
+
                     if (Array.isArray(val) && val.length > 0) {
-                        return val.map((v) => (
-                            <div key={`${k}-${v}`} className="flex items-center gap-1.5 px-2 py-1 bg-emerald-900/40 border border-emerald-500/30 rounded text-xs text-emerald-200 group hover:border-red-500/50 hover:bg-red-900/20 hover:text-red-200 transition-colors cursor-pointer" onClick={() => removeOption(k, v)}>
-                                <span className="opacity-50 uppercase text-[9px] font-bold mr-0.5">{k}:</span>
-                                <span>{v}</span>
+                        return (
+                            <div key={k} className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs border transition-colors cursor-pointer group ${
+                                isCombined 
+                                ? 'bg-indigo-900/40 border-indigo-500/30 text-indigo-200 hover:bg-red-900/20 hover:border-red-500/50'
+                                : 'bg-emerald-900/40 border-emerald-500/30 text-emerald-200 hover:bg-red-900/20 hover:border-red-500/50'
+                            }`} onClick={() => setOptions({...options, [k]: []})}>
+                                <span className="opacity-50 uppercase text-[9px] font-bold mr-0.5">{k}{isCombined ? ' (Comb)' : ''}:</span>
+                                <span className="max-w-[150px] truncate">
+                                    {isCombined ? val.join(' + ') : val.length + ' items'}
+                                </span>
                                 <X size={10} className="ml-1 opacity-50 group-hover:opacity-100" />
                             </div>
-                        ));
+                        );
                     }
                     if (typeof val === 'boolean' && val === true) {
                         if (k === 'replaceBackground') {
@@ -185,7 +241,7 @@ const OptionsDialog: React.FC<Props> = ({ isOpen, onClose, options, setOptions, 
                 })}
                 {Object.keys(options).every(k => {
                      const val = options[k as keyof AppOptions];
-                     return Array.isArray(val) ? val.length === 0 : val === false;
+                     return Array.isArray(val) ? val.length === 0 : (typeof val === 'boolean' ? val === false : true);
                 }) && (
                     <span className="text-slate-600 text-xs italic py-1">No options selected. Defaults (Original Image) will apply.</span>
                 )}
@@ -199,6 +255,7 @@ const OptionsDialog: React.FC<Props> = ({ isOpen, onClose, options, setOptions, 
           <div className="w-64 bg-slate-950 border-r border-slate-800 flex flex-col pt-4 overflow-y-auto shrink-0">
              {[
                { id: 'CHAR', label: 'Characters', icon: User },
+               { id: 'ATTIRE', label: 'Attire', icon: Shirt },
                { id: 'SPECIES', label: 'Species', icon: Sparkles },
                { id: 'ITEMS', label: 'Items', icon: Package },
                { id: 'DECOR', label: 'Decorations', icon: Brush },
@@ -243,8 +300,22 @@ const OptionsDialog: React.FC<Props> = ({ isOpen, onClose, options, setOptions, 
                     {renderCheckboxes('age', 'Age')}
                     {renderCheckboxes('skin', 'Skin Color')}
                     {renderCheckboxes('hair', 'Hair Color')}
-                    {renderCheckboxes('clothes', 'Attire')}
-                    {renderCheckboxes('shoes', 'Footwear')}
+                </div>
+              </div>
+            )}
+            {activeTab === 'ATTIRE' && (
+              <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
+                {options.removeCharacters && (
+                    <div className="p-4 bg-red-900/20 border border-red-500/30 rounded-lg flex items-center gap-3 text-red-200 mb-4">
+                        <Ban size={20} />
+                        <span className="text-sm font-medium">Attire options are disabled in Landscape Mode.</span>
+                    </div>
+                )}
+                <div className={options.removeCharacters ? 'opacity-30 pointer-events-none grayscale' : ''}>
+                    {renderGroups(config.attireGroups, 'clothes', 'Attire Selection')}
+                    <div className="mt-8 pt-8 border-t border-slate-800">
+                       {renderCheckboxes('shoes', 'Footwear')}
+                    </div>
                 </div>
               </div>
             )}
@@ -257,7 +328,7 @@ const OptionsDialog: React.FC<Props> = ({ isOpen, onClose, options, setOptions, 
                     </div>
                  )}
                  <div className={options.removeCharacters ? 'opacity-30 pointer-events-none grayscale' : ''}>
-                     {renderGroups(config.speciesGroups, 'species')}
+                     {renderGroups(config.speciesGroups, 'species', 'Species Selection')}
                  </div>
               </div>
             )}
@@ -270,7 +341,7 @@ const OptionsDialog: React.FC<Props> = ({ isOpen, onClose, options, setOptions, 
                     </div>
                  )}
                  <div className={options.removeCharacters ? 'opacity-30 pointer-events-none grayscale' : ''}>
-                     {renderGroups(config.itemGroups, 'items')}
+                     {renderGroups(config.itemGroups, 'items', 'Items Selection')}
                  </div>
               </div>
             )}
@@ -283,7 +354,7 @@ const OptionsDialog: React.FC<Props> = ({ isOpen, onClose, options, setOptions, 
                     </div>
                   )}
                   <div className={options.removeCharacters ? 'opacity-30 pointer-events-none grayscale' : ''}>
-                      {renderGroups(config.decorationGroups, 'decorations')}
+                      {renderGroups(config.decorationGroups, 'decorations', 'Decorations Selection')}
                   </div>
               </div>
             )}
@@ -294,7 +365,7 @@ const OptionsDialog: React.FC<Props> = ({ isOpen, onClose, options, setOptions, 
             )}
             {activeTab === 'ENV' && (
                <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-                  {renderGroups(config.environmentGroups, 'environment')}
+                  {renderGroups(config.environmentGroups, 'environment', 'Environment Selection')}
                </div>
             )}
              {activeTab === 'TIME' && (

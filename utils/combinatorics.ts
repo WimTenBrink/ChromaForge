@@ -1,7 +1,5 @@
 
 
-
-
 import { AppOptions } from "../types";
 
 /**
@@ -10,14 +8,30 @@ import { AppOptions } from "../types";
  */
 export const generatePermutations = (options: AppOptions) => {
   // Only iterate over array properties that are meant for permutations
-  const keys = Object.keys(options).filter(key => Array.isArray(options[key as keyof AppOptions])) as (keyof AppOptions)[];
+  // Filter out 'combinedGroups' as it's a control array, not a feature array
+  const keys = Object.keys(options).filter(key => 
+    key !== 'combinedGroups' && Array.isArray(options[key as keyof AppOptions])
+  ) as (keyof AppOptions)[];
   
   // Get the arrays of selected values for each category
   const arrays = keys.map(key => {
-    // Return [undefined] if empty so it acts as a single "ignore" pass in the cartesian product
-    // rather than resulting in 0 total combinations.
     const val = options[key];
-    return (Array.isArray(val) && val.length > 0) ? val : [undefined];
+    
+    // Safety check
+    if (!Array.isArray(val) || val.length === 0) {
+        return [undefined];
+    }
+
+    // COMBINATION LOGIC:
+    // If this category is in 'combinedGroups', we treat all selected items as a single "item" 
+    // to be used in one image, rather than permuting through them.
+    if (options.combinedGroups.includes(key)) {
+        const joined = val.join(' + '); // Join with + to indicate combination in prompt
+        return [joined];
+    }
+
+    // Normal behavior: return the array to generate permutations
+    return val;
   });
 
   // Helper to calculate cartesian product
@@ -54,6 +68,7 @@ export const generatePermutations = (options: AppOptions) => {
 export const buildPromptFromCombo = (combo: any): string => {
   // Conditionally build lines only for present options
   const details: string[] = [];
+  let requiresNudityCoverage = false;
   
   // Only add character details if we are NOT removing characters
   if (!combo.removeCharacters) {
@@ -62,7 +77,21 @@ export const buildPromptFromCombo = (combo: any): string => {
       if (combo.age) details.push(`- Age: ${combo.age}`);
       if (combo.skin) details.push(`- Skin: ${combo.skin}`);
       if (combo.hair) details.push(`- Hair: ${combo.hair}`);
-      if (combo.clothes) details.push(`- Clothes: ${combo.clothes}`);
+      if (combo.clothes) {
+          details.push(`- Clothes/Attire: ${combo.clothes}`);
+          // Check for implied nudity keywords to trigger safety instruction
+          // Using lowercase check for robustness against combined strings "Option + Option"
+          const clothesLower = String(combo.clothes).toLowerCase();
+          if (
+              clothesLower.includes("nude") || 
+              clothesLower.includes("body paint") || 
+              clothesLower.includes("strategic") ||
+              clothesLower.includes("sheet") || 
+              clothesLower.includes("chained")
+          ) {
+              requiresNudityCoverage = true;
+          }
+      }
       if (combo.shoes) details.push(`- Shoes: ${combo.shoes}`);
       if (combo.items) details.push(`- Item(s) equipped/holding: ${combo.items}`);
       if (combo.decorations) details.push(`- Body Decorations/Features: ${combo.decorations}`);
@@ -98,6 +127,10 @@ export const buildPromptFromCombo = (combo: any): string => {
        modeInstruction = "5. Maintain the composition of the original line art strictly.";
   }
 
+  const coverageInstruction = requiresNudityCoverage 
+    ? "7. IMPLIED NUDITY HANDLING: For the 'Nude (Implied)', 'Chained' or artistic body paint options, maintain an artistic, tasteful look. CRITICAL: Provide minimal coverage to private areas using small elements like a single leaf, a strategically placed object, deep shadow, flowing hair, or flower petals. The nudity should be implied but not explicitly graphic."
+    : "";
+
   return `
     Colorize this line art.
     Turn it into a high-resolution, 4K, photo-realistic photograph (unless Art Style specifies otherwise).
@@ -119,6 +152,7 @@ export const buildPromptFromCombo = (combo: any): string => {
     4. If the requested Clothes or Shoes option (e.g. Space Suit) contradicts the Technology Level (e.g. Bronze Age), prioritize the Technology Level and adapt the clothing to fit that era. No space suits in the Bronze age.
     ${modeInstruction}
     6. If an option is not set (missing from the lists above), do not use it or infer it arbitrarily; use the original image content as the guide for that aspect.
+    ${coverageInstruction}
     
     High quality, detailed, masterpiece.
   `.trim();

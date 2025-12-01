@@ -681,14 +681,19 @@ const App: React.FC = () => {
                         <p>Generated artworks will appear here.</p>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                    <div className="columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4 space-y-4 pb-20">
                         {generatedImages.map(img => (
                             <div 
                                 key={img.id} 
                                 onClick={() => setSelectedImage(img)}
-                                className="group relative aspect-square bg-slate-900 rounded-lg overflow-hidden border border-slate-800 shadow-md hover:shadow-emerald-500/10 transition-all cursor-zoom-in"
+                                className="break-inside-avoid group relative bg-slate-900 rounded-lg overflow-hidden border border-slate-800 shadow-md hover:shadow-emerald-500/10 transition-all cursor-zoom-in"
                             >
-                                <img src={img.url} alt="generated" className="w-full h-full object-cover" />
+                                <img 
+                                    src={img.url} 
+                                    alt="generated" 
+                                    className="w-full h-auto block"
+                                    loading="lazy"
+                                />
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity p-4 flex flex-col justify-end pointer-events-none">
                                     <p className="text-[10px] text-white font-bold mb-0.5">{img.originalFilename}</p>
                                     <p className="text-[9px] text-slate-400 line-clamp-1 mb-2">{img.optionsUsed}</p>

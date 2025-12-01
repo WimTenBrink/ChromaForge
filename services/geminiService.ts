@@ -77,26 +77,6 @@ const fileToBase64 = (file: File): Promise<string> => {
   });
 };
 
-const convertToPng = (base64Data: string, inputMimeType: string): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        reject(new Error("Could not get canvas context"));
-        return;
-      }
-      ctx.drawImage(img, 0, 0);
-      resolve(canvas.toDataURL('image/png'));
-    };
-    img.onerror = () => reject(new Error("Failed to convert image to PNG"));
-    img.src = `data:${inputMimeType};base64,${base64Data}`;
-  });
-};
-
 export const processImage = async (file: File | string, prompt: string, mimeTypeInput?: string, aspectRatio?: string): Promise<string> => {
   log('INFO', 'Initializing Gemini Request', { model: 'gemini-3-pro-image-preview', aspectRatio });
 
@@ -225,9 +205,8 @@ export const processImage = async (file: File | string, prompt: string, mimeType
         throw new Error(msg);
     }
 
-    // Convert the result to PNG
-    const pngDataUrl = await convertToPng(generatedImageBase64, outputMimeType);
-    return pngDataUrl;
+    // Return the data URL directly without re-encoding via canvas (which blocks UI)
+    return `data:${outputMimeType};base64,${generatedImageBase64}`;
 
   } catch (error: any) {
     log('ERROR', 'Gemini API Error', formatErrorForLog(error));

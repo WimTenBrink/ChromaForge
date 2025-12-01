@@ -33,6 +33,10 @@ export interface AppOptions {
   
   replaceBackground: boolean;
   removeCharacters: boolean;
+  
+  // Tracks which categories should have their selected options combined into a single prompt 
+  // instead of generating permutations.
+  combinedGroups: string[];
 }
 
 export interface GlobalConfig {
@@ -40,12 +44,12 @@ export interface GlobalConfig {
   environmentGroups: Record<string, string[]>;
   itemGroups: Record<string, string[]>;
   decorationGroups: Record<string, string[]>;
+  attireGroups: Record<string, string[]>;
   lists: {
       gender: string[];
       age: string[];
       skin: string[];
       hair: string[];
-      clothes: string[];
       shoes: string[];
       technology: string[];
       timeOfDay: string[];
