@@ -1,4 +1,5 @@
 
+
 import { AppOptions } from "./types";
 
 export const DEFAULT_OPTIONS: AppOptions = {
@@ -6,21 +7,24 @@ export const DEFAULT_OPTIONS: AppOptions = {
   age: [],
   skin: [],
   hair: [],
-  clothes: ['Underwear'],
-  shoes: ['Barefoot'],
+  clothes: [],
+  shoes: [],
   species: [],
   technology: [],
   environment: [],
   timeOfDay: [],
+  weather: [],
   aspectRatio: ['Original'],
   items: [],
   // New defaults
-  artStyle: [],
+  artStyle: ['Photorealistic'],
   lighting: [],
   camera: [],
   mood: [],
+  decorations: [],
   
-  replaceBackground: false
+  replaceBackground: false,
+  removeCharacters: false
 };
 
 export const MAX_CONCURRENT_JOBS = 2;

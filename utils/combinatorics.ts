@@ -1,4 +1,7 @@
 
+
+
+
 import { AppOptions } from "../types";
 
 /**
@@ -34,6 +37,9 @@ export const generatePermutations = (options: AppOptions) => {
     if (options.replaceBackground) {
         comboObj.replaceBackground = true;
     }
+    if (options.removeCharacters) {
+        comboObj.removeCharacters = true;
+    }
 
     keys.forEach((key, index) => {
       // Only set if value is not undefined
@@ -49,19 +55,24 @@ export const buildPromptFromCombo = (combo: any): string => {
   // Conditionally build lines only for present options
   const details: string[] = [];
   
-  if (combo.species) details.push(`- Species: ${combo.species}`);
-  if (combo.gender) details.push(`- Gender: ${combo.gender}`);
-  if (combo.age) details.push(`- Age: ${combo.age}`);
-  if (combo.skin) details.push(`- Skin: ${combo.skin}`);
-  if (combo.hair) details.push(`- Hair: ${combo.hair}`);
-  if (combo.clothes) details.push(`- Clothes: ${combo.clothes}`);
-  if (combo.shoes) details.push(`- Shoes: ${combo.shoes}`);
-  if (combo.items) details.push(`- Item(s) equipped/holding: ${combo.items}`);
+  // Only add character details if we are NOT removing characters
+  if (!combo.removeCharacters) {
+      if (combo.species) details.push(`- Species: ${combo.species}`);
+      if (combo.gender) details.push(`- Gender: ${combo.gender}`);
+      if (combo.age) details.push(`- Age: ${combo.age}`);
+      if (combo.skin) details.push(`- Skin: ${combo.skin}`);
+      if (combo.hair) details.push(`- Hair: ${combo.hair}`);
+      if (combo.clothes) details.push(`- Clothes: ${combo.clothes}`);
+      if (combo.shoes) details.push(`- Shoes: ${combo.shoes}`);
+      if (combo.items) details.push(`- Item(s) equipped/holding: ${combo.items}`);
+      if (combo.decorations) details.push(`- Body Decorations/Features: ${combo.decorations}`);
+  }
   
   const setting: string[] = [];
   if (combo.technology) setting.push(`- Technology Level: ${combo.technology}`);
   if (combo.environment) setting.push(`- Environment: ${combo.environment}`);
   if (combo.timeOfDay) setting.push(`- Time of Day: ${combo.timeOfDay}`);
+  if (combo.weather) setting.push(`- Weather: ${combo.weather}`);
   
   const style: string[] = [];
   if (combo.artStyle) style.push(`- Art Style: ${combo.artStyle}`);
@@ -73,9 +84,19 @@ export const buildPromptFromCombo = (combo: any): string => {
       setting.push(`- Aspect Ratio: ${combo.aspectRatio}`);
   }
 
-  const bgInstruction = combo.replaceBackground 
-    ? "5. EXTRACTION MODE: Extract the main character(s) from the original line art. Completely discard the original background. Generate a new background based on the specified Environment. Ensure seamless integration." 
-    : "5. Maintain the composition of the original line art strictly.";
+  let modeInstruction = "";
+  if (combo.removeCharacters) {
+       modeInstruction = "5. LANDSCAPE MODE: The output must contain NO characters, people, or figures. Focus entirely on the environment/scenery.";
+       if (combo.replaceBackground) {
+           modeInstruction += " Completely discard the original background line art and generate a new scene based on the Environment settings.";
+       } else {
+           modeInstruction += " Maintain the original background composition but remove the people. Infill the space where characters were.";
+       }
+  } else if (combo.replaceBackground) {
+       modeInstruction = "5. EXTRACTION MODE: Extract the main character(s) from the original line art. Completely discard the original background. Generate a new background based on the specified Environment. Ensure seamless integration.";
+  } else {
+       modeInstruction = "5. Maintain the composition of the original line art strictly.";
+  }
 
   return `
     Colorize this line art.
@@ -83,7 +104,7 @@ export const buildPromptFromCombo = (combo: any): string => {
     It must look like a real picture or high-end render.
     
     Character Details:
-    ${details.join('\n    ')}
+    ${details.length > 0 ? details.join('\n    ') : 'N/A (Landscape Mode)'}
     
     Setting:
     ${setting.join('\n    ')}
@@ -96,7 +117,7 @@ export const buildPromptFromCombo = (combo: any): string => {
     2. Ensure strict logical consistency between the Technology/Environment and the Character's attire. 
     3. Make sure people in the generated images wear the proper clothes for their technology and the environment, including the clothing option set for the character.
     4. If the requested Clothes or Shoes option (e.g. Space Suit) contradicts the Technology Level (e.g. Bronze Age), prioritize the Technology Level and adapt the clothing to fit that era. No space suits in the Bronze age.
-    ${bgInstruction}
+    ${modeInstruction}
     6. If an option is not set (missing from the lists above), do not use it or infer it arbitrarily; use the original image content as the guide for that aspect.
     
     High quality, detailed, masterpiece.

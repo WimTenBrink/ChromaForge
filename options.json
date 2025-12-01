@@ -33,7 +33,7 @@
   },
   "environmentGroups": {
     "Indoors": [
-      "Living Room", "Library", "Laboratory", "Tavern", "Throne Room", "Bedroom", "Kitchen", "Office", "Temple Interior", "Cave", "Bunker"
+      "Living Room", "Bathroom", "Dining Room", "Library", "Laboratory", "Tavern", "Throne Room", "Bedroom", "Kitchen", "Attic", "Basement", "Office", "Temple Interior", "Cave", "Bunker"
     ],
     "Outdoors (Nature)": [
       "Forest", "Jungle", "Desert", "Tundra", "Mountain Peak", "River Bank", "Beach", "Meadow", "Swamp", "Canyon", "Volcano"
@@ -80,21 +80,29 @@
       "Flowers", "Skull", "Candle", "Flag", "Lantern", "Musical Instrument"
     ]
   },
+  "decorationGroups": {
+    "Tattoos": ["Tribal Tattoo", "Sleeve Tattoo", "Face Tattoo", "Minimalist Tattoo", "Dragon Tattoo", "Bio-mech Tattoo", "Henna", "Yakuza Style"],
+    "Piercings": ["Nose Ring", "Lip Piercing", "Brow Piercing", "Ear Gauge", "Multiple Ear Piercings", "Septum Ring", "Industrial Piercing"],
+    "Scars & Marks": ["Eye Scar", "Cheek Scar", "Battle Scars", "Burn Mark", "Freckles", "Beauty Mark", "Vitiligo"],
+    "Body Modifications": ["Cybernetic Eye", "Mechanical Arm", "Pointed Ears", "Vampire Fangs", "Horns", "Halo"],
+    "Makeup & Paint": ["War Paint", "Heavy Eyeliner", "Red Lipstick", "Gold Dust", "Camouflage Paint", "Clown Makeup", "Geisha Makeup"]
+  },
   "lists": {
     "gender": ["Male", "Female", "Intersex", "Non-binary", "Androgynous"],
     "age": ["Child", "Preteen", "Teen", "Young Adult", "Adult", "Mature", "Old", "Ancient"],
     "skin": ["Albino", "Pale", "Fair", "Tan", "Brown", "Dark Brown", "Black", "Blueish", "Greenish", "Reddish", "Metallic", "Bioluminescent", "Transparent"],
-    "hair": ["Blonde", "Brunette", "Black", "Red", "White", "Grey", "Blue", "Pink", "Green", "Purple", "Rainbow", "Bald", "Fiery"],
-    "clothes": ["Nude (Implied)", "Underwear", "Casual", "Formal", "Uniform", "Space Suit", "Armor", "Fantasy Robes", "Cyberpunk Gear", "Rags", "Swimwear", "Steampunk Attire", "Tribal Garb", "Victorian", "Tactical Gear"],
-    "shoes": ["Barefoot", "Barefoot with Anklets", "Sandals", "Sneakers", "Shoes", "Boots", "High Heels", "Space Boots", "Greaves", "Wraps", "Magnetic Boots"],
+    "hair": ["Blonde", "Brunette", "Black", "Red", "White", "Grey", "Blue", "Pink", "Green", "Purple", "Rainbow", "Bald", "Fiery", "Gold", "Silver", "Copper", "Platinum"],
+    "clothes": ["Nude (Implied)", "Casual", "Formal", "Uniform", "Space Suit", "Armor", "Fantasy Robes", "Cyberpunk Gear", "Rags", "Swimwear", "Steampunk Attire", "Tribal Garb", "Victorian", "Tactical Gear"],
+    "shoes": ["Barefoot with Anklets", "Sandals", "Sneakers", "Shoes", "Boots", "High Heels", "Space Boots", "Greaves", "Wraps", "Magnetic Boots"],
     "technology": ["Stone Age", "Bronze Age", "Iron Age", "Medieval", "Renaissance", "Industrial", "Contemporary", "Near Future", "Cyberpunk", "Far Future", "Intergalactic", "Post-Apocalyptic"],
     "timeOfDay": ["Dawn", "Morning", "Noon", "Afternoon", "Golden Hour", "Evening", "Sunset", "Blue Hour", "Twilight", "Midnight", "Eclipse"],
+    "weather": ["Clear / Sunny", "Partly Cloudy", "Overcast", "Rain / Drizzle", "Thunderstorm", "Snowing / Blizzard", "Foggy / Misty", "Windy", "Hail", "Dust Storm"],
     "aspectRatio": ["Original", "16:9", "4:3", "3:2", "1:1", "2:3", "3:4", "9:16"],
     "artStyle": [
         "Photorealistic", "Oil Painting", "Watercolor", "Cyberpunk", "Steampunk", "Ukiyo-e", "Noir", "Gothic", "Art Nouveau", "Surrealism", "Pop Art", "Concept Art", "Studio Ghibli Style", "Pixar Style", "Anime", "Comic Book", "Retro 80s"
     ],
     "lighting": [
-        "Natural", "Studio", "Cinematic", "Neon", "Bioluminescent", "Candlelight", "Moonlight", "Volumetric Fog", "Rim Lighting", "Softbox", "Hard Shadows", "Rembrandt"
+        "Natural", "Studio", "Cinematic", "Neon", "Bioluminescent", "Candlelight", "Volumetric Fog", "Rim Lighting", "Softbox", "Hard Shadows", "Rembrandt"
     ],
     "camera": [
         "Wide Angle", "Telephoto", "Macro", "Fisheye", "Drone View", "Low Angle", "Dutch Angle", "Bokeh", "Over-the-shoulder"

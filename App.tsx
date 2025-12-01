@@ -167,6 +167,8 @@ const App: React.FC = () => {
 
   const handleRemoveInput = (id: string) => {
     setInputQueue(prev => prev.filter(i => i.id !== id));
+    // Remove pending jobs for this input so they don't process
+    setPendingJobs(prev => prev.filter(j => j.sourceImageId !== id));
     // Also remove failures related to this input
     setFailedItems(prev => prev.filter(f => f.sourceImageId !== id));
   };
@@ -322,11 +324,14 @@ const App: React.FC = () => {
           }
       };
 
-      if (pendingJobs.length < MAX_CONCURRENT_JOBS && inputQueue.some(i => i.status === 'QUEUED')) {
-          if (!inputQueue.some(i => i.status === 'ANALYZING')) {
-              analyzeNext();
-          }
+      // Strict Sequential Processing Logic:
+      // Only start analyzing a new image if there is NO image currently being analyzed or processed.
+      const isAnyImageActive = inputQueue.some(i => i.status === 'ANALYZING' || i.status === 'PROCESSING');
+      
+      if (!isAnyImageActive && inputQueue.some(i => i.status === 'QUEUED')) {
+          analyzeNext();
       }
+
   }, [isProcessing, inputQueue, pendingJobs.length, options]);
 
 
@@ -334,28 +339,31 @@ const App: React.FC = () => {
   useEffect(() => {
     if (!isProcessing) return;
     
-    // Completion Check
-    if (pendingJobs.length === 0 && processingJobs.length === 0 && !inputQueue.some(i => i.status === 'QUEUED' || i.status === 'ANALYZING')) {
-         // Check if we should turn off processing
-         const activeInputs = inputQueue.filter(i => i.status === 'PROCESSING');
-         
-         if (activeInputs.length > 0) {
-             setInputQueue(prev => prev.map(i => {
-                 if (i.status === 'PROCESSING') {
-                     // Check if this input has associated failures
-                     const hasFailures = failedItems.some(f => f.sourceImageId === i.id);
-                     return { ...i, status: hasFailures ? 'PARTIAL' : 'COMPLETED' };
-                 }
-                 return i;
-             }));
-         } else {
-             // Truly done
-             setIsProcessing(false);
-             log('INFO', 'All jobs finished', {});
-         }
+    // Check for completion of active processing inputs (for sequential flow)
+    const activeProcessingInputs = inputQueue.filter(i => i.status === 'PROCESSING');
+    
+    if (activeProcessingInputs.length > 0 && pendingJobs.length === 0 && processingJobs.length === 0) {
+         // All jobs for current active image are done. Mark as COMPLETED.
+         setInputQueue(prev => prev.map(i => {
+             if (i.status === 'PROCESSING') {
+                 // Check if this input has associated failures
+                 const hasFailures = failedItems.some(f => f.sourceImageId === i.id);
+                 return { ...i, status: hasFailures ? 'PARTIAL' : 'COMPLETED' };
+             }
+             return i;
+         }));
+         // Note: We do NOT turn off isProcessing here; the first useEffect will pick up the next image.
          return;
     }
 
+    // Check if entire batch is done (no queues, no active items)
+    if (pendingJobs.length === 0 && processingJobs.length === 0 && !inputQueue.some(i => i.status === 'QUEUED' || i.status === 'ANALYZING' || i.status === 'PROCESSING')) {
+         setIsProcessing(false);
+         log('INFO', 'All jobs finished', {});
+         return;
+    }
+
+    // Process Jobs Limit
     if (processingJobs.length >= MAX_CONCURRENT_JOBS) return;
 
     if (pendingJobs.length > 0) {
@@ -372,6 +380,7 @@ const App: React.FC = () => {
     
     const input = inputQueue.find(i => i.id === job.sourceImageId);
     if (!input) {
+        // Input might have been deleted by user while job was pending
         setProcessingJobs(prev => prev.filter(j => j.id !== job.id));
         return;
     }

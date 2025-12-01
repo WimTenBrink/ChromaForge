@@ -1,3 +1,4 @@
+
 import React, { useState, DragEvent } from 'react';
 import { Upload, X, Loader2, RefreshCw, Trash2 } from 'lucide-react';
 import { InputImage, Job } from '../types';
@@ -100,18 +101,16 @@ const InputList: React.FC<Props> = ({ inputs, activeJobs, onAddFiles, onRemove, 
             <div key={input.id} className={`relative group bg-slate-800 rounded-lg overflow-hidden border ${
                 input.status === 'FAILED' ? 'border-red-900/50' : 'border-slate-700'
             }`}>
-              {/* Top right delete button (only when not processing) */}
-              {input.status !== 'PROCESSING' && input.status !== 'ANALYZING' && (
-                  <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                    <button 
-                      onClick={() => onRemove(input.id)}
-                      className="bg-black/50 hover:bg-red-500 text-white p-1 rounded-full backdrop-blur-sm"
-                      title="Remove"
-                    >
-                      <X size={14} />
-                    </button>
-                  </div>
-              )}
+              {/* Always allow deletion */}
+              <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                <button 
+                  onClick={() => onRemove(input.id)}
+                  className="bg-black/50 hover:bg-red-500 text-white p-1 rounded-full backdrop-blur-sm"
+                  title="Remove"
+                >
+                  <X size={14} />
+                </button>
+              </div>
 
               <div className="h-32 w-full overflow-hidden">
                   <img src={input.previewUrl} alt="preview" className="w-full h-full object-cover" />

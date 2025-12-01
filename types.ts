@@ -21,6 +21,7 @@ export interface AppOptions {
   technology: string[];
   environment: string[];
   timeOfDay: string[];
+  weather: string[];
   aspectRatio: string[];
   items: string[];
   // New Creative Options
@@ -28,14 +29,17 @@ export interface AppOptions {
   lighting: string[];
   camera: string[];
   mood: string[];
+  decorations: string[];
   
   replaceBackground: boolean;
+  removeCharacters: boolean;
 }
 
 export interface GlobalConfig {
   speciesGroups: Record<string, string[]>;
   environmentGroups: Record<string, string[]>;
   itemGroups: Record<string, string[]>;
+  decorationGroups: Record<string, string[]>;
   lists: {
       gender: string[];
       age: string[];
@@ -45,6 +49,7 @@ export interface GlobalConfig {
       shoes: string[];
       technology: string[];
       timeOfDay: string[];
+      weather: string[];
       aspectRatio: string[];
       artStyle: string[];
       lighting: string[];

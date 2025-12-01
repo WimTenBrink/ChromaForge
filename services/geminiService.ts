@@ -1,8 +1,67 @@
-
-
-import { GoogleGenAI, Schema, Type } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import { log } from "./logger";
 import { ImageAnalysis } from "../types";
+
+// Helper to extract a readable message from any error type
+const getErrorMessage = (err: any): string => {
+  if (err === undefined || err === null) return "Unknown Error";
+  if (typeof err === 'string') return err;
+  
+  if (err instanceof Error) return err.message;
+  
+  if (typeof err === 'object') {
+      // Check for common API error patterns
+      if (typeof err.message === 'string') return err.message;
+      if (err.error && typeof err.error.message === 'string') return err.error.message; // Google API standard
+      
+      // If toString returns default object string, try JSON stringify
+      if (typeof err.toString === 'function' && err.toString() !== '[object Object]') {
+          return err.toString();
+      }
+      
+      try {
+          return JSON.stringify(err);
+      } catch {
+          return "Unknown Error Object (Non-serializable)";
+      }
+  }
+  
+  return String(err);
+};
+
+// Helper to ensure Error objects are serializable for logs
+const formatErrorForLog = (err: any) => {
+  const message = getErrorMessage(err);
+  let stack = undefined;
+  let raw = err;
+
+  if (err instanceof Error) {
+      stack = err.stack;
+      // Capture extra properties on the error object
+      raw = {};
+      Object.getOwnPropertyNames(err).forEach(prop => {
+          if (prop !== 'stack' && prop !== 'message') {
+              (raw as any)[prop] = (err as any)[prop];
+          }
+      });
+  }
+
+  return {
+      message,
+      name: (err as any)?.name || 'Error',
+      stack,
+      details: raw
+  };
+};
+
+// Helper to ensure we always throw an Error object with a string message
+const ensureError = (err: any): Error => {
+    if (err instanceof Error) return err;
+    const message = getErrorMessage(err);
+    const wrapper = new Error(message);
+    (wrapper as any).originalError = err;
+    return wrapper;
+};
 
 const fileToBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -44,8 +103,9 @@ export const processImage = async (file: File | string, prompt: string, mimeType
   // API Key Check
   const apiKey = process.env.API_KEY;
   if (!apiKey) {
-      log('ERROR', 'API Key Missing', { message: 'process.env.API_KEY is undefined' });
-      throw new Error("API Key not found. Please select a key.");
+      const err = new Error("API Key not found. Please select a key.");
+      log('ERROR', 'API Key Missing', formatErrorForLog(err));
+      throw err;
   }
 
   try {
@@ -102,15 +162,30 @@ export const processImage = async (file: File | string, prompt: string, mimeType
     const response = await ai.models.generateContent(requestPayload);
 
     log('GEMINI_RES', 'Received Generate Content Response', { 
-        candidates: response.candidates?.length,
-        usage: response.usageMetadata
+        candidatesCount: response.candidates?.length,
+        usage: response.usageMetadata,
+        finishReason: response.candidates?.[0]?.finishReason
     });
+
+    // Check if candidates exist
+    if (!response.candidates || response.candidates.length === 0) {
+        const blockReason = (response as any).promptFeedback?.blockReason;
+        const msg = blockReason 
+            ? `Model blocked request. Reason: ${blockReason}` 
+            : 'Model returned no candidates.';
+        
+        log('ERROR', 'No candidates in response', { response });
+        throw new Error(msg);
+    }
 
     // Extract image
     let generatedImageBase64: string | null = null;
     let outputMimeType = 'image/jpeg'; 
+    let textResponse = '';
     
-    const parts = response.candidates?.[0]?.content?.parts;
+    const candidate = response.candidates[0];
+    const parts = candidate?.content?.parts;
+    
     if (parts) {
         for (const part of parts) {
             if (part.inlineData) {
@@ -118,23 +193,45 @@ export const processImage = async (file: File | string, prompt: string, mimeType
                 if (part.inlineData.mimeType) {
                     outputMimeType = part.inlineData.mimeType;
                 }
-                break;
+            } else if (part.text) {
+                textResponse += part.text;
             }
         }
     }
 
     if (!generatedImageBase64) {
-        log('ERROR', 'No image data in response', response);
-        throw new Error("Model did not return an image.");
+        const reason = candidate?.finishReason || 'UNKNOWN';
+        const safetyRatings = candidate?.safetyRatings || [];
+        
+        let msg = `Model did not return an image. Finish Reason: ${reason}`;
+        
+        if (reason === 'SAFETY') {
+             const unsafe = safetyRatings.filter(r => r.probability !== 'NEGLIGIBLE' && r.probability !== 'LOW');
+             if (unsafe.length > 0) {
+                 msg += `. Safety Flags: ${unsafe.map(r => `${r.category}=${r.probability}`).join(', ')}`;
+             }
+        }
+
+        if (textResponse) msg += `. Message: ${textResponse.slice(0, 200)}`;
+
+        const details = { 
+            finishReason: reason,
+            textResponse,
+            safetyRatings,
+            rawResponse: response 
+        };
+        
+        log('ERROR', 'No image data in response', details);
+        throw new Error(msg);
     }
 
-    // Convert the result to PNG (with alpha channel capability)
+    // Convert the result to PNG
     const pngDataUrl = await convertToPng(generatedImageBase64, outputMimeType);
     return pngDataUrl;
 
   } catch (error: any) {
-    log('ERROR', 'Gemini API Error', error);
-    throw error;
+    log('ERROR', 'Gemini API Error', formatErrorForLog(error));
+    throw ensureError(error);
   }
 };
 
@@ -186,17 +283,19 @@ export const analyzeImage = async (file: File | string, mimeTypeInput?: string):
           }
       });
 
-      let jsonText = response.text || "{}";
+      let jsonStr = response.text;
+      if (!jsonStr) {
+          throw new Error("Empty response text from analysis model");
+      }
       
-      // Sanitize JSON (remove markdown code blocks if present)
-      jsonText = jsonText.replace(/```json\n?|\n?```/g, '').trim();
+      // Sanitize JSON
+      jsonStr = jsonStr.replace(/```json\n?|\n?```/g, '').trim();
       
       let data;
       try {
-          data = JSON.parse(jsonText);
+          data = JSON.parse(jsonStr);
       } catch (e) {
-          log('WARN', 'JSON Parse Failed, using fallback', { textLength: jsonText.length, error: (e as Error).message });
-          // Fallback to prevent app crash
+          log('WARN', 'JSON Parse Failed, using fallback', { textLength: jsonStr.length, error: formatErrorForLog(e) });
           data = {
               title: "Analysis Incomplete",
               description: "The analysis data could not be fully parsed from the model response. Proceeding with defaults.",
@@ -205,13 +304,11 @@ export const analyzeImage = async (file: File | string, mimeTypeInput?: string):
           };
       }
       
-      // Provide defaults if fields are missing in valid JSON
       const title = data.title || "Untitled";
       const description = data.description || "No description provided.";
       const objects = Array.isArray(data.objects) ? data.objects : [];
       const safety = data.safety || "Unknown";
 
-      // Generate Markdown content
       const markdownContent = `
 # ${title}
 
@@ -236,7 +333,7 @@ ${objects.length > 0 ? objects.map((obj: string) => `- ${obj}`).join('\n') : 'No
           markdownContent
       };
   } catch (error) {
-      log('ERROR', 'Analysis Request Error', error);
-      throw error;
+      log('ERROR', 'Analysis Request Error', formatErrorForLog(error));
+      throw ensureError(error);
   }
 };
