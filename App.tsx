@@ -384,14 +384,27 @@ const App: React.FC = () => {
       setViewedImage(data);
   };
 
-  const autoDownloadImage = (imageUrl: string, prefix: string, optionsSummary: string) => {
-      const sanitizedOptions = optionsSummary
-        .replace(/, /g, '_')
-        .replace(/[^a-z0-9_]/gi, '')
-        .substring(0, 100); 
+  const autoDownloadImage = (imageUrl: string, originalFilename: string, optionsSummary: string) => {
+      // Determine Type from optionsSummary
+      let type = "Colorized";
+      const summaryLower = optionsSummary.toLowerCase();
       
-      const sanitizedPrefix = prefix.replace(/[^a-z0-9]/gi, '_');
-      const filename = `${sanitizedPrefix}_${sanitizedOptions}.png`;
+      if (summaryLower.includes("no characters")) {
+          type = "Background";
+      } else if (summaryLower.includes("nude")) {
+          type = "Nude";
+          if (summaryLower.includes("opposite")) {
+             type = "Nude-Opposite";
+          }
+      }
+
+      // Process Original Filename (Remove extension)
+      const nameParts = originalFilename.split('.');
+      if (nameParts.length > 1) nameParts.pop();
+      const namePart = nameParts.join('.');
+
+      // "Line-<Type>-<Original>.png"
+      const filename = `Line-${type}-${namePart}.png`;
       
       const link = document.createElement('a');
       link.href = imageUrl;
@@ -468,7 +481,7 @@ const App: React.FC = () => {
         };
 
         setGeneratedImages(prev => [generated, ...prev]);
-        autoDownloadImage(imageUrl, title, job.optionsSummary);
+        autoDownloadImage(imageUrl, job.originalFilename, job.optionsSummary);
         
         // Remove from Queue upon completion (it moves to Gallery)
         setJobQueue(prev => prev.filter(j => j.id !== job.id));
@@ -537,7 +550,8 @@ const App: React.FC = () => {
   };
 
   const handleClearGallery = () => {
-      if (generatedImages.length === 0) return;
+      if (generatedImages.length === 0)
+          return;
       setGeneratedImages([]);
   };
 
@@ -774,10 +788,10 @@ const App: React.FC = () => {
                    {generatedImages.length > 0 && (
                        <button 
                         onClick={handleClearGallery} 
-                        className="flex items-center gap-1 transition-colors cursor-pointer text-slate-400 hover:text-red-400"
+                        className="flex items-center gap-2 px-3 py-0.5 bg-slate-800 hover:bg-red-900/30 text-slate-400 hover:text-red-400 border border-transparent hover:border-red-900/50 rounded transition-all"
                         type="button"
                        >
-                           <Trash2 size={12} /> Clear Gallery
+                           <Trash2 size={12} /> Delete All Finished Jobs
                        </button>
                    )}
                    <span>
