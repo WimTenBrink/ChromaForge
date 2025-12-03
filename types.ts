@@ -13,6 +13,7 @@ export interface LogEntry {
 export interface AppOptions {
   gender: string[];
   age: string[];
+  bodyType: string[];
   skin: string[];
   hair: string[];
   eyeColor: string[];
@@ -53,6 +54,7 @@ export interface GlobalConfig {
   lists: {
       gender: string[];
       age: string[];
+      bodyType: string[];
       skin: string[];
       hair: string[];
       eyeColor: string[];

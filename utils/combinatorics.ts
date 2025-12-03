@@ -79,6 +79,7 @@ export const buildPromptFromCombo = (combo: any): string => {
       if (shouldInclude(combo.species)) details.push(`- Species: ${combo.species}`);
       if (shouldInclude(combo.gender)) details.push(`- Gender: ${combo.gender}`);
       if (shouldInclude(combo.age)) details.push(`- Age: ${combo.age}`);
+      if (shouldInclude(combo.bodyType)) details.push(`- Body Type: ${combo.bodyType}`);
       if (shouldInclude(combo.skin)) details.push(`- Skin: ${combo.skin}`);
       if (shouldInclude(combo.hair)) details.push(`- Hair: ${combo.hair}`);
       if (shouldInclude(combo.eyeColor)) details.push(`- Eye Color: ${combo.eyeColor}`);

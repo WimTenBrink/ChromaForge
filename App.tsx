@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Play, Pause, Settings, Terminal, Plus, Shield, ShieldCheck, Trash2, Loader2, Activity, Book, Upload, Clock } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Play, Pause, Settings, Terminal, Plus, Shield, ShieldCheck, Trash2, Loader2, Activity, Book, Upload, Clock, Save, FolderOpen } from 'lucide-react';
 import InputList from './components/InputList';
 import FailedList from './components/FailedList';
 import OptionsDialog from './components/OptionsDialog';
@@ -36,6 +36,9 @@ const App: React.FC = () => {
   const [apiKeyReady, setApiKeyReady] = useState(false);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
 
+  // File Input Ref for Import
+  const queueFileInputRef = useRef<HTMLInputElement>(null);
+
   // Statistics & Timing
   const [jobDurations, setJobDurations] = useState<number[]>([]);
 
@@ -45,6 +48,9 @@ const App: React.FC = () => {
   
   const totalVariationsScheduled = jobQueue.length + generatedImages.length + failedItems.length;
   const totalCompleted = generatedImages.length;
+  const totalProcessed = generatedImages.length + failedItems.length;
+  const progressPercentage = totalVariationsScheduled === 0 ? 0 : Math.round((totalProcessed / totalVariationsScheduled) * 100);
+
   const averageDurationMs = jobDurations.length > 0 
       ? jobDurations.reduce((a, b) => a + b, 0) / jobDurations.length 
       : 15000; // Default estimate 15s
@@ -117,6 +123,100 @@ const App: React.FC = () => {
               log('ERROR', 'Failed to select API key', e);
           }
       }
+  };
+
+  // --- Queue Import/Export ---
+
+  const handleExportQueue = () => {
+      if (jobQueue.length === 0) {
+          alert("Queue is empty.");
+          return;
+      }
+
+      // Serialize Registry (Exclude File objects, they aren't serializable, rely on base64)
+      const registryArray = Array.from(sourceRegistry.entries()).map(([id, src]) => {
+          return [id, {
+              ...src,
+              file: null, // Drop the file object
+              previewUrl: '' // Drop the blob URL (will regenerate on import)
+          }];
+      });
+
+      const data = {
+          version: '2.0',
+          timestamp: Date.now(),
+          queue: jobQueue,
+          registry: registryArray
+      };
+
+      const json = JSON.stringify(data, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `chromaforge_queue_${new Date().toISOString().slice(0, 10)}.klj`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      log('INFO', 'Queue exported', { count: jobQueue.length });
+  };
+
+  const handleImportQueue = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+          try {
+              const content = event.target?.result as string;
+              const data = JSON.parse(content);
+
+              if (!data.queue || !Array.isArray(data.queue) || !data.registry) {
+                  throw new Error("Invalid .klj file format.");
+              }
+
+              const newRegistry = new Map(sourceRegistry);
+              let restoredCount = 0;
+
+              // 1. Restore Registry
+              for (const [id, src] of data.registry) {
+                  // Only add if not present to avoid overwriting active blob URLs if they exist
+                  if (!newRegistry.has(id)) {
+                      // Regenerate Blob URL from Base64
+                      const res = await fetch(`data:${src.type};base64,${src.base64Data}`);
+                      const blob = await res.blob();
+                      const previewUrl = URL.createObjectURL(blob);
+                      
+                      newRegistry.set(id, {
+                          ...src,
+                          file: null,
+                          previewUrl
+                      });
+                      restoredCount++;
+                  }
+              }
+
+              // 2. Restore Jobs (Filter duplicates)
+              const existingJobIds = new Set(jobQueue.map(j => j.id));
+              const newJobs = data.queue.filter((j: Job) => !existingJobIds.has(j.id));
+
+              setSourceRegistry(newRegistry);
+              setJobQueue(prev => [...prev, ...newJobs]);
+
+              log('INFO', 'Queue imported', { importedJobs: newJobs.length, restoredSources: restoredCount });
+              alert(`Queue imported: ${newJobs.length} jobs added.`);
+
+          } catch (err) {
+              console.error(err);
+              log('ERROR', 'Import failed', err);
+              alert("Failed to import queue file. The file might be corrupted or incompatible.");
+          }
+          // Reset input
+          if (queueFileInputRef.current) queueFileInputRef.current.value = '';
+      };
+      reader.readAsText(file);
   };
 
   // --- Handlers ---
@@ -482,6 +582,15 @@ const App: React.FC = () => {
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
     >
+      {/* Hidden File Input for Queue Import */}
+      <input 
+          type="file" 
+          ref={queueFileInputRef} 
+          accept=".klj,.clj" 
+          className="hidden" 
+          onChange={handleImportQueue}
+      />
+
       {/* Global Drop Zone Overlay */}
       {isDraggingOver && (
           <div className="absolute inset-0 z-50 bg-emerald-900/80 backdrop-blur-sm flex flex-col items-center justify-center pointer-events-none animate-in fade-in duration-200">
@@ -506,28 +615,43 @@ const App: React.FC = () => {
         </div>
 
         {/* Detailed Stats in Header */}
-        <div className="hidden lg:flex flex-1 mx-8 bg-slate-800/50 border border-slate-700/50 rounded-lg p-1.5 items-center justify-around text-xs font-mono relative overflow-hidden">
-            <div className="flex flex-col items-center leading-none">
+        <div className="hidden lg:flex flex-1 mx-8 bg-slate-800/50 border border-slate-700/50 rounded-lg p-1.5 items-center justify-around text-xs font-mono relative overflow-hidden group">
+            {/* Progress Bar Background */}
+            <div 
+                className="absolute bottom-0 left-0 h-1 bg-emerald-500/50 transition-all duration-500 ease-out z-0"
+                style={{ width: `${progressPercentage}%` }}
+            />
+
+            <div className="flex flex-col items-center leading-none z-10">
                 <span className="text-slate-500 text-[9px]">PENDING</span>
                 <span className="text-slate-300 font-bold">{activeJobs.length}</span>
             </div>
-            <div className="w-px h-6 bg-slate-700" />
-            <div className="flex flex-col items-center leading-none">
+            <div className="w-px h-6 bg-slate-700 z-10" />
+            <div className="flex flex-col items-center leading-none z-10">
                 <span className="text-emerald-500 text-[9px]">COMPLETED</span>
                 <span className="text-emerald-400 font-bold">{totalCompleted}</span>
             </div>
-            <div className="w-px h-6 bg-slate-700" />
-            <div className="flex flex-col items-center leading-none">
+            
+            <div className="w-px h-6 bg-slate-700 z-10" />
+            
+            {/* New Progress Section */}
+            <div className="flex flex-col items-center leading-none z-10">
+                <span className="text-blue-500 text-[9px]">PROGRESS</span>
+                <span className="text-blue-400 font-bold">{progressPercentage}%</span>
+            </div>
+
+            <div className="w-px h-6 bg-slate-700 z-10" />
+            <div className="flex flex-col items-center leading-none z-10">
                 <span className="text-slate-500 text-[9px]">ESTIMATED TIME</span>
                 <span className="text-amber-400 font-bold flex items-center gap-1">
                     <Clock size={10} />
                     {activeJobs.length > 0 ? formatTime(estimatedRemainingMs) : '00:00'}
                 </span>
             </div>
-            <div className="w-px h-6 bg-slate-700" />
+            <div className="w-px h-6 bg-slate-700 z-10" />
             
             {/* Status Section */}
-            <div className="flex flex-col px-4 flex-1 min-w-[250px]">
+            <div className="flex flex-col px-4 flex-1 min-w-[250px] z-10">
                  <div className="flex items-center gap-2 mb-0.5">
                      {isProcessing ? (
                          <Loader2 size={12} className="animate-spin text-amber-500" />
@@ -545,6 +669,30 @@ const App: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-4">
+             {/* Queue Import/Export */}
+             <div className="flex items-center bg-slate-800 rounded-lg p-1 border border-slate-700 gap-1">
+                <button
+                    onClick={handleExportQueue}
+                    disabled={jobQueue.length === 0}
+                    className={`p-1.5 rounded-md transition-colors ${
+                        jobQueue.length === 0 
+                        ? 'text-slate-600 cursor-not-allowed' 
+                        : 'text-slate-400 hover:text-emerald-400 hover:bg-slate-700'
+                    }`}
+                    title="Export Queue to .klj"
+                >
+                    <Save size={18} />
+                </button>
+                <div className="w-px h-4 bg-slate-700"></div>
+                <button
+                    onClick={() => queueFileInputRef.current?.click()}
+                    className="p-1.5 rounded-md text-slate-400 hover:text-emerald-400 hover:bg-slate-700 transition-colors"
+                    title="Import Queue from .klj"
+                >
+                    <FolderOpen size={18} />
+                </button>
+             </div>
+
              <button 
                onClick={handleApiKeySelect}
                className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${

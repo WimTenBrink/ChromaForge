@@ -3,6 +3,7 @@ import { AppOptions } from "./types";
 export const DEFAULT_OPTIONS: AppOptions = {
   gender: ['Female'],
   age: [],
+  bodyType: [],
   skin: [],
   hair: [],
   eyeColor: [],

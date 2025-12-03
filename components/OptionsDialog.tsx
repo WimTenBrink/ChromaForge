@@ -348,6 +348,7 @@ const OptionsDialog: React.FC<Props> = ({ isOpen, onClose, options, setOptions, 
                 <div className={options.removeCharacters ? 'opacity-30 pointer-events-none grayscale' : ''}>
                     {renderCheckboxes('gender', 'Gender')}
                     {renderCheckboxes('age', 'Age')}
+                    {renderCheckboxes('bodyType', 'Body Type')}
                     {renderCheckboxes('skin', 'Skin Color')}
                     {renderCheckboxes('eyeColor', 'Eye Color')}
                     {renderCheckboxes('hair', 'Hair Color')}

@@ -20,7 +20,17 @@ export const log = (level: LogLevel, title: string, details: any) => {
   let formattedDetails = details;
   try {
       if (typeof details === 'object' && details !== null) {
-          formattedDetails = JSON.stringify(details, null, 2);
+          formattedDetails = JSON.stringify(details, (key, value) => {
+              if (value instanceof Error) {
+                  return {
+                      name: value.name,
+                      message: value.message,
+                      stack: value.stack,
+                      ...(value as any)
+                  };
+              }
+              return value;
+          }, 2);
       }
   } catch (e) {
       formattedDetails = '[Circular/Non-serializable]';

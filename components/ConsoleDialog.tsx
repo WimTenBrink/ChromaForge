@@ -39,7 +39,17 @@ const ConsoleDialog: React.FC<Props> = ({ isOpen, onClose }) => {
 
   const safeStringify = (obj: any) => {
       try {
-          return JSON.stringify(obj, null, 2);
+          return JSON.stringify(obj, (key, value) => {
+            if (value instanceof Error) {
+                return {
+                    name: value.name,
+                    message: value.message,
+                    stack: value.stack,
+                    ...(value as any)
+                };
+            }
+            return value;
+          }, 2);
       } catch (e) {
           return `[Unable to stringify object: ${(e as Error).message}]`;
       }

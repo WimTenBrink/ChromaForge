@@ -109,6 +109,7 @@
   "lists": {
     "gender": ["As-Is (Skip)", "Androgynous", "Female", "Intersex", "Male", "Non-binary"],
     "age": ["As-Is (Skip)", "Child", "Preteen", "Teen", "Young Adult", "Adult", "Mature", "Old", "Ancient"],
+    "bodyType": ["As-Is (Skip)", "Athletic", "Average", "Bodybuilder", "Chubby", "Curvy", "Fat", "Fit", "Heavy", "Lean", "Muscular", "Obese", "Plump", "Skinny", "Slender", "Stocky", "Tall", "Thin", "Voluptuous"],
     "skin": ["As-Is (Skip)", "Albino", "Bioluminescent", "Black", "Blueish", "Brown", "Dark Brown", "Fair", "Greenish", "Metallic", "Pale", "Reddish", "Tan", "Tan/Tan lines", "Transparent"],
     "eyeColor": ["As-Is (Skip)", "Amber", "Black", "Blue", "Brown", "Glowing", "Gold", "Green", "Grey", "Hazel", "Heterochromia", "Red", "Silver", "Violet"],
     "hair": ["As-Is (Skip)", "Bald", "Black", "Blonde", "Blue", "Brunette", "Copper", "Fiery", "Gold", "Green", "Grey", "Pink", "Platinum", "Purple", "Rainbow", "Red", "Silver", "White"],

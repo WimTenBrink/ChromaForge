@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { log } from "./logger";
 import { ImageAnalysis } from "../types";
 
@@ -100,6 +100,55 @@ const fileToBase64 = (file: File): Promise<string> => {
   });
 };
 
+const withTimeout = <T>(promise: Promise<T>, ms: number, context: string): Promise<T> => {
+    return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+            reject(new Error(`Operation timed out after ${ms/1000}s: ${context}`));
+        }, ms);
+
+        promise
+            .then(value => {
+                clearTimeout(timer);
+                resolve(value);
+            })
+            .catch(reason => {
+                clearTimeout(timer);
+                reject(reason);
+            });
+    });
+};
+
+const retryOperation = async <T>(operation: () => Promise<T>, maxRetries: number = 3, baseDelay: number = 2000): Promise<T> => {
+    let lastError: any;
+    for (let i = 0; i < maxRetries; i++) {
+        try {
+            return await operation();
+        } catch (error: any) {
+            lastError = error;
+            // Check for 503 Service Unavailable / Overloaded or 429 Too Many Requests
+            const statusCode = error.status || error.code || (error.error && error.error.code);
+            const msg = error.message || (error.error && error.error.message) || '';
+            
+            const isRetryable = 
+                statusCode === 503 || 
+                statusCode === 429 ||
+                msg.includes('overloaded') ||
+                msg.includes('503') ||
+                msg.includes('Too Many Requests') ||
+                msg.includes('timed out'); // Also retry timeouts
+            
+            if (isRetryable && i < maxRetries - 1) {
+                const delay = baseDelay * Math.pow(2, i); // Exponential backoff
+                log('WARN', `API Busy/Timeout (${statusCode || 'N/A'}). Retrying...`, { attempt: i + 1, delay });
+                await new Promise(resolve => setTimeout(resolve, delay));
+                continue;
+            }
+            throw error;
+        }
+    }
+    throw lastError;
+};
+
 export const processImage = async (file: File | string, prompt: string, mimeTypeInput?: string, aspectRatio?: string): Promise<string> => {
   log('INFO', 'Initializing Gemini Request', { model: 'gemini-3-pro-image-preview', aspectRatio });
 
@@ -162,7 +211,11 @@ export const processImage = async (file: File | string, prompt: string, mimeType
        config: requestPayload.config
     });
 
-    const response = await ai.models.generateContent(requestPayload);
+    // Use retry wrapper with timeout for the generation call
+    // Image generation is slow, give it 180s per try
+    const response = await retryOperation<GenerateContentResponse>(() => 
+        withTimeout(ai.models.generateContent(requestPayload), 180000, "Image Generation")
+    );
 
     log('GEMINI_RES', 'Received Generate Content Response', { 
         candidatesCount: response.candidates?.length,
@@ -218,7 +271,11 @@ export const processImage = async (file: File | string, prompt: string, mimeType
              const unsafe = safetyRatings.filter(r => r.probability !== 'NEGLIGIBLE' && r.probability !== 'LOW');
              if (unsafe.length > 0) {
                  msg += `. Safety Flags: ${unsafe.map(r => `${r.category}=${r.probability}`).join(', ')}`;
+             } else {
+                 msg = "Safety Block: The model refused to generate this image due to safety guidelines. Please adjust your prompt (avoid nudity, real people, or violence).";
              }
+        } else if (reason === 'PROHIBITED_CONTENT' || reason === 'IMAGE_SAFETY') {
+             msg = `Safety Block: The model flagged the content as ${reason}. Try removing sensitive terms or reducing prompt complexity.`;
         }
 
         if (textResponse) msg += `. Message: ${textResponse.slice(0, 200)}`;
@@ -263,16 +320,15 @@ export const analyzeImage = async (file: File | string, mimeTypeInput?: string):
   }
 
   const prompt = `
-    Analyze this image in detail (simulating Google Cloud Vision).
-    Provide the output in JSON format with the following keys:
-    - title: A creative, short title for the image (max 5 words).
-    - description: A concise description of the image content (max 100 words).
-    - objects: A list of up to 20 prominent objects detected in the image.
-    - safety: A safety assessment summary (Safe/Unsafe and why).
+    Analyze this image in detail.
+    Output JSON only.
+    Keys: title (max 5 words), description (max 50 words), objects (list 10 items), safety (summary).
   `;
 
   try {
-      const response = await ai.models.generateContent({
+      // Use retry for analysis as well
+      const response = await retryOperation<GenerateContentResponse>(() => 
+        withTimeout(ai.models.generateContent({
           model: 'gemini-2.5-flash',
           contents: {
               parts: [
@@ -292,7 +348,8 @@ export const analyzeImage = async (file: File | string, mimeTypeInput?: string):
                   }
               }
           }
-      });
+      }), 45000, "Image Analysis")
+    );
 
       let jsonStr = response.text;
       if (!jsonStr) {
@@ -306,7 +363,7 @@ export const analyzeImage = async (file: File | string, mimeTypeInput?: string):
       try {
           data = JSON.parse(jsonStr);
       } catch (e) {
-          log('WARN', 'JSON Parse Failed, using fallback', { textLength: jsonStr.length, error: formatErrorForLog(e) });
+          log('WARN', 'JSON Parse Failed, using fallback', { textLength: jsonStr.length, errorMsg: getErrorMessage(e) });
           data = {
               title: "Analysis Incomplete",
               description: "The analysis data could not be fully parsed from the model response. Proceeding with defaults.",
