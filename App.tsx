@@ -222,12 +222,9 @@ const App: React.FC = () => {
           });
           // Note: We don't automatically update job prompts here because prompts are generated from combo logic.
           // If we wanted to inject analysis into prompt, we'd need to regenerate prompts or inject dynamic placeholders.
-          // For now, analysis is for user info and Markdown download.
+          // For now, analysis is for user info.
           log('INFO', 'Background Analysis Complete', { sourceId, title: analysis.title });
           
-          // Trigger Markdown Download
-          downloadMarkdown(analysis);
-
       } catch (e) {
           log('WARN', 'Background Analysis Failed', { sourceId, error: e });
       }
@@ -283,18 +280,6 @@ const App: React.FC = () => {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-  };
-
-  const downloadMarkdown = (analysis: ImageAnalysis) => {
-      const blob = new Blob([analysis.markdownContent], { type: 'text/markdown' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${analysis.title.replace(/[^a-z0-9]/gi, '_')}_Analysis.md`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
   };
 
   const toggleProcessing = () => {

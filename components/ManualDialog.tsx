@@ -9,198 +9,110 @@ interface Props {
 
 const MANUAL_CONTENT = `
 # ChromaForge User Manual
-**Version 1.2 | Katje B.V.**
+**Version 2.0 | Katje B.V.**
 
 ---
 
-## 1. Introduction to ChromaForge
+## 1. Introduction
 
-Welcome to **ChromaForge**, a professional-grade AI-powered tool designed to transform simple line art and sketches into fully realized, photorealistic masterpieces. Unlike generic image generators, ChromaForge focuses specifically on the *colorization and rendering* of existing structures, preserving the composition of your original drawings while applying sophisticated lighting, texturing, and character detailing.
+**ChromaForge** is a professional AI-powered tool for transforming line art into photorealistic 4K masterpieces. It uses a **Combinatorial Generation Engine** to create distinct variations of your artwork based on structured logical inputs.
 
-This application leverages the Google Gemini 3 Pro Vision model to understand the semantic content of your sketches. It doesn't just "guess" colors; it identifies characters, environments, and objects, and then applies a rigorous set of user-defined constraints to generate variations.
-
-### Core Philosophy
-The core philosophy of ChromaForge is **Combinatorial Creativity**. Instead of writing one prompt and hoping for the best, ChromaForge allows you to define sets of variables (e.g., 3 different lighting conditions, 2 different outfits, and 4 art styles). The engine then mathematically permutes these options to generate every unique combination, allowing you to explore a vast creative space systematically.
-
----
-
-## 2. Getting Started
-
-### 2.1 System Requirements
-ChromaForge is a web-based application that runs entirely in your browser.
-*   **Browser**: Latest versions of Chrome, Edge, Firefox, or Safari.
-*   **Hardware**: No heavy GPU required locally; all processing happens in the cloud. A stable internet connection is essential.
-*   **Display**: Optimized for desktop resolutions (1080p or higher recommended).
-
-### 2.2 API Key Configuration
-To function, ChromaForge requires access to Google's Generative AI services.
-1.  Click the **Shield Icon** or **Set API Key** button in the top header.
-2.  You will be prompted to select a Google Cloud Project with billing enabled.
-3.  Once authorized, the key is securely handled by the session.
-    *   *Note: This application does not store your API key on any external server controlled by Katje B.V.; it is used directly between your browser and Google APIs.*
+### Core Architecture: "One Job Per Configuration"
+Unlike standard image generators, ChromaForge treats every single configuration as a unique **Job**.
+*   If you select 1 Gender, 2 Hair Colors, and 3 Environments, the system calculates $1 \\times 2 \\times 3 = 6$ distinct permutations.
+*   When you drag an image into the app, **6 separate jobs** are immediately created in the queue.
+*   **Snapshotting**: Each job "remembers" the exact settings active at the moment you added the file. Changing global settings afterwards *will not* change the jobs already in the queue.
 
 ---
 
-## 3. Interface Overview
+## 2. Workflow & Interface
 
-The user interface is divided into three main operational zones:
+### 2.1 Global Drop Zone
+The entire application window is a drop zone.
+*   **Action**: Drag one or multiple image files (PNG, JPG, WEBP) anywhere onto the screen.
+*   **Result**: The system immediately calculates the permutations based on your *current* configuration and adds them to the Input Queue.
 
-### 3.1 Input Queue (Left Panel)
-This is your staging area.
-*   **Drag & Drop**: You can drag multiple image files (PNG, JPG, WEBP) directly onto the dashed drop zone.
-*   **Status Indicators**: Each image card shows its current state:
-    *   \`QUEUED\`: Waiting for processing.
-    *   \`ANALYZING\`: The AI is currently scanning the image to generate a title and description.
-    *   \`PROCESSING\`: The AI is currently generating variations. A progress bar will appear.
-    *   \`COMPLETED\`: All requested variations have been generated.
-    *   \`FAILED\`: An error occurred (see Troubleshooting).
-*   **Controls**: Hovering over an image allows you to **Delete** it. Completed images have a **Rerun** button to restart the batch with new settings.
+### 2.2 The Input Queue (Left Sidebar)
+This list represents your production line.
+*   **Granular Items**: Each item is a specific variation (e.g., *"Elf, Red Hair, Sunset"*), not just the source file.
+*   **Thumbnails**: Full-width thumbnails allow you to preview the source line art. **Click to Zoom** deeply into the source image.
+*   **Reordering**: Use the **Up/Down** and **Top/Bottom** buttons on each card to prioritize specific variations.
+*   **Processing**: The system processes the queue from **Top to Bottom**, handling **3 jobs concurrently**.
 
-### 3.2 Main Gallery (Center Panel)
-This is where your creations appear.
-*   **Masonry Layout**: Images are arranged dynamically to respect their original aspect ratios.
-*   **Interaction**: Click any image to open the **Detail View** (Deep Zoom).
-*   **Metadata**: Hovering over an image reveals the filename and the specific options combination used to generate it.
-*   **Clear Gallery**: A trash icon in the toolbar allows you to clear the current session's results.
+### 2.3 The Gallery (Center)
+*   **Viewing**: Click any image to open the **Detail View**. Use Arrow Keys to navigate.
+*   **Zooming**: Scroll to zoom in/out; drag to pan.
+*   **Management**:
+    *   **Delete**: Each image has a trash icon to remove it from the session.
+    *   **Clear Gallery**: Removes all generated results (does not affect the queue).
+*   **Auto-Download**: Generated images are automatically downloaded to your device with filenames describing their specific configuration.
 
-### 3.3 Failed Jobs (Right Panel)
-If a generation fails (due to safety filters or API limits), it appears here.
-*   **Retry**: You can retry individual failed jobs.
-*   **Retry All**: A master button to re-queue all failures at once.
-*   **Error Details**: Provides a technical reason for the failure (e.g., "Safety Block: Sexual Content").
+### 2.4 Failed Jobs (Right Sidebar)
+*   **Retry Limit**: A job can be retried up to **5 times**. After 5 failures, it is permanently locked to prevent API loops.
+*   **Manual Retry**: Failures are not retried automatically. You must click the **Retry** button (Refresh icon).
+*   **Zoom**: You can zoom in on failed thumbnails to inspect if the source image quality caused the issue.
 
-### 3.4 Header & Controls
-*   **Start/Stop**: The primary control for the batch processing engine.
-*   **Configuration (Settings Icon)**: Opens the Permutation Logic editor.
-*   **Console (Terminal Icon)**: Opens the system logs for advanced debugging.
-*   **Stats Dashboard**: Displays the total scheduled variations vs. completed and failed jobs.
+### 2.5 Dashboard Header
+*   **Stats**: Shows Pending vs. Completed jobs.
+*   **ETR (Estimated Time Remaining)**: Calculates based on the average duration of recent jobs.
+*   **API Key**: Status indicator for your Google Gemini API connection.
 
 ---
 
-## 4. The Configuration Engine
+## 3. Configuration & Options
 
-This is the heart of ChromaForge. Clicking **Configure Generation** opens a comprehensive dialog where you define the logic for your batch.
+Click **Configure Generation** to access the logic engine.
 
-### 4.1 Permutations vs. Combinations
-ChromaForge operates on a **Cartesian Product** logic.
-*   **Example**: If you select \`Gender: Female\`, \`Hair: [Red, Blonde]\`, and \`Time: [Noon, Midnight]\`.
-*   **Result**: The system will generate **4 images** (Female+Red+Noon, Female+Red+Midnight, Female+Blonde+Noon, Female+Blonde+Midnight).
+### 3.1 Presets (.kcf)
+You can now save and load your configurations.
+*   **Save Preset**: Exports your current settings to a \`.kcf\` (JSON) file. You will be prompted for a name.
+*   **Load Preset**: Imports settings from a file, restoring your complex logic setups.
 
-#### The "Combine Selections" Feature
-In any category (e.g., Clothing), you will see a **"Combine Selections"** checkbox in the header.
-*   **Unchecked (Default)**: Generates one image per selected option (Permutation).
-*   **Checked**: Merges all selected options into a single prompt.
-    *   *Example*: Selecting "Boots" and "Anklets" with Combine checked will generate **one** image with "Boots AND Anklets", rather than two separate images.
+### 3.2 Feature Categories
 
-### 4.2 Character Configuration
-*   **Gender & Age**: Defines the demographic of the subject.
-*   **Skin & Hair**: Offers a wide range of natural and fantasy colors (e.g., "Blueish", "Metallic").
-*   **Species**:
-    *   *Standard*: Humans, Elves, Dwarves.
-    *   *Franchise Specific*: Twi'lek (Star Wars), Klingon (Star Trek), Na'vi (Avatar).
-    *   *Note*: Selecting a non-human species will override most human physiological descriptors.
+#### **Character & Body**
+*   **Eye Color**: Dedicated options for iris coloration.
+*   **Emotions**: Force specific expressions (e.g., "Screaming", "Seductive", "Stoic").
+*   **Actions**: Define dynamic poses like "Fighting", "Swimming", or "Casting Spell".
+*   **Skin Effects**: A specialized tab for surface textures.
+    *   **Zones**: Apply effects to Face, Arms, Legs, or Whole Body.
+    *   **Options**: Mud, Dust, Blood, Oil, Paint, Soot, Sweat, etc.
 
-### 4.3 Attire & Clothing
-Clothing is organized into functional groups.
-*   **Casual / Office / Uniforms**: Standard daily wear.
-*   **Armor / Fantasy**: Plate mail, leather, robes.
-*   **Implied Nudity / Artistic**:
-    *   This section includes sensitive options like "Nude (Implied)", "Body Paint", or "Chained".
-    *   **Safety Mechanism**: ChromaForge automatically appends "Strategic Coverage" instructions to these prompts (e.g., "cover with leaves, shadow, or hair") to ensure the output remains artistic and non-explicit, adhering to safety guidelines while fulfilling the creative request.
+#### **Camera & Composition**
+*   **Full Body**: A specific instruction to ensure the AI frames the character from head to toe.
+*   **Angles**: Aerial, Dutch Angle, Low Angle, etc.
 
-### 4.4 Decorations (Body Mods)
-Customize the fine details of your character.
-*   **Tattoos**: Tribal, sleeve, Yakuza-style, etc.
-*   **Piercings**: Nose rings, industrial piercings, etc.
-*   **Scars & Marks**: Battle scars, burn marks, freckles.
-*   **Makeup**: War paint, geisha makeup, camouflage.
+#### **World Building**
+*   **Technology**: Now includes Fantasy levels (High Fantasy, Magitech, Steampunk, D&D Tech Levels).
+*   **As-Is (Skip)**: Every category now includes an "As-Is" option. This tells the AI to ignore that specific category and use its own judgment based on the visual input.
 
-### 4.5 Environment & World Building
-*   **Technology Level**: Sets the era (Stone Age to Intergalactic). This logic is "sticky"—if you select "Bronze Age", the AI will try to avoid putting the character in a modern suit, even if requested, or will adapt the suit to look primitive.
-*   **Environment**:
-    *   *Indoors*: Libraries, throne rooms, bunkers.
-    *   *Outdoors*: Nature and Urban settings.
-    *   *Abstract*: Studio lighting, solid backgrounds.
-*   **Time of Day & Weather**: drastically affects the lighting and mood. "Golden Hour" provides warm light; "Cyberpunk" environments often force neon lighting.
-
-### 4.6 Artistic Control
-*   **Art Style**: Defaults to "Photorealistic" (4K render). Can be changed to "Oil Painting", "Watercolor", "Anime", "Ukiyo-e", etc.
-*   **Camera**: "Wide Angle", "Telephoto", "Drone View".
-*   **Lighting**: "Volumetric Fog", "Rembrandt", "Neon".
-
-### 4.7 Advanced Custom Settings
-Located in the **Custom** tab.
-
-#### A. Landscape Mode (Remove Characters)
-*   **Function**: When enabled, the AI is instructed to **ignore** all character-related prompts (Gender, Clothes, etc.).
-*   **Use Case**: You have a line art of a person standing in a forest, but you only want to generate the forest background without the person.
-*   **In-filling**: The AI will attempt to "in-fill" the space where the character was, effectively erasing them from the scene.
-
-#### B. Replace Background
-*   **Function**: Instructs the AI to perform a segmentation/extraction of the main subject and completely discard the background drawn in the line art.
-*   **Use Case**: You have a sketch of a character on a plain paper, but you want them standing on "The Moon".
-*   **Integration**: The AI generates the new background and attempts to composite the character seamlessly with correct lighting matching that background.
+### 3.3 Advanced Modes (Custom Tab)
+*   **Landscape Mode (Remove Characters)**:
+    *   Instructs the AI to erase people from the scene and in-fill the background.
+    *   Disables character-specific tabs (Gender, Attire, etc.) to prevent logical conflicts.
+*   **Replace Background**:
+    *   Performs subject segmentation to discard the original line art background and generate a new one based on "Environment" settings.
 
 ---
 
-## 5. Workflow Strategies
+## 4. Tips for Success
 
-### 5.1 Efficient Batching
-Because of the combinatorial nature of the app, variation counts can explode quickly.
-*   **Tip**: Use the **Counter** in the configuration header. If it turns yellow/amber, you are generating over 20 images per input file.
-*   **Tip**: Start small. Select 1 Art Style and 1 Environment to test how the AI interprets your specific line art style before selecting 10 different outfits.
-
-### 5.2 Handling Line Art Quality
-*   **Clean Lines**: The better the input line art, the better the result. High contrast black-and-white images work best.
-*   **Sketches**: Rough sketches are acceptable, but the AI might interpret stray pencil marks as texture or floating objects.
-*   **Incomplete Lines**: If your line art has gaps (open shapes), colors may "bleed" or the AI might misinterpret the form.
-
-### 5.3 Analyzing Inputs
-When you add an image, ChromaForge runs an **Analysis Phase**.
-*   It detects objects and safety levels.
-*   It generates a markdown file (automatically downloaded) containing a description of what the AI "sees" in your sketch.
-*   **Why is this useful?** If the AI keeps generating the wrong thing (e.g., thinking a hat is a rock), check the analysis. If the analysis is wrong, the drawing might be too ambiguous.
+1.  **Check Settings BEFORE Dragging**: Because jobs snapshot settings immediately, ensure your configuration is correct before dragging in 10 files.
+2.  **Use the Permutation Counter**: The calculator in the config header updates in real-time. If it says "120 Combinations", dragging **one** image will add **120 jobs** to the queue.
+3.  **Facial Details**: The system is prompted to strictly preserve facial features, but "Close-up" camera angles often yield the highest fidelity faces.
+4.  **Zooming**: Use the zoom feature on sidebar items to check if your source line art has enough contrast. Faint pencil lines can sometimes be misinterpreted as "fog" or "texture".
 
 ---
 
-## 6. Technical Details & Troubleshooting
+## 5. Technical Notes
 
-### 6.1 The Processing Loop
-1.  **Queue**: Images sit in the queue until "Start" is clicked.
-2.  **Analysis**: The first step is always analyzing the image content.
-3.  **Job Creation**: The app calculates all permutations and creates "Jobs".
-4.  **Execution**: Jobs are processed 2 at a time (Max Concurrency).
-5.  **Result**: The image is returned as a base64 stream and saved to memory.
-
-### 6.2 Data Persistence
-*   **Input Queue**: Saved to your browser's IndexedDB. If you refresh the page, your queued images should remain (though generated images in the gallery are currently session-only to save memory).
-*   **Configuration**: Saved to LocalStorage. Your settings persist between visits.
-
-### 6.3 Common Errors
-*   **"Safety" Block**: The Gemini model has strict safety filters. If your prompt combined with the visual input implies explicit sexual violence or extreme gore, the generation will be blocked.
-    *   *Solution*: Try using the "Implied Nudity" options which add safety keywords, or reduce the explicitness of the prompt.
-*   **"API Key Missing"**: You must re-select the key if the session expires.
-*   **"Overloaded"**: If Google's servers are busy, you may see 503 errors. The app has built-in retry logic, but sometimes you just need to wait.
-
-### 6.4 Downloads
-*   **Auto-Download**: By default, every generated image is automatically downloaded to your device's default download folder.
-*   **Filename Format**: \`{OriginalName}_{OptionSummary}.png\`
+*   **Markdown Analysis**: Automatic markdown report generation has been disabled to streamline the batch workflow.
+*   **Privacy**: Images are processed in memory and sent directly to Google Cloud. No images are stored on intermediate servers.
+*   **Session Storage**: The Input Queue persists via your browser's IndexedDB, but the Gallery is session-based. Download your results!
 
 ---
 
-## 7. Privacy & Security
-*   **Local Processing**: ChromaForge does not upload your images to any private server owned by the developers. Images are sent directly from your browser to Google's API endpoints.
-*   **Google Data Usage**: Please refer to Google's Generative AI Terms of Service regarding how they handle data sent to the Gemini API. Generally, for paid tiers (using your own API key), data is not used to train models, but you should verify this based on your specific Google Cloud agreement.
-
----
-
-## 8. Keyboard Shortcuts
-*   **ESC**: Close any open dialog (Options, Console, Detail View).
-*   **Left / Right Arrow**: Navigate through images in the Detail View.
-
----
-
-**ChromaForge** is a tool for the modern digital artist—a forge where the raw iron of a sketch is hammered into the steel of a masterpiece. Happy creating!
+*(c) 2024 Katje B.V. - ChromaForge*
 `;
 
 const ManualDialog: React.FC<Props> = ({ isOpen, onClose }) => {
@@ -214,8 +126,6 @@ const ManualDialog: React.FC<Props> = ({ isOpen, onClose }) => {
         setHtmlContent(parsed);
     }
   }, [isOpen]);
-
-  if (!isOpen) return null;
 
   const handleDownload = () => {
     const blob = new Blob([MANUAL_CONTENT], { type: 'text/markdown' });
@@ -273,7 +183,7 @@ const ManualDialog: React.FC<Props> = ({ isOpen, onClose }) => {
                 {/* Footer of document */}
                 <div className="mt-16 pt-8 border-t border-slate-800 flex flex-col items-center text-slate-500 text-sm">
                     <p>© {new Date().getFullYear()} Katje B.V. All rights reserved.</p>
-                    <p className="mt-2">ChromaForge v1.2</p>
+                    <p className="mt-2">ChromaForge v2.0</p>
                 </div>
             </div>
         </div>
