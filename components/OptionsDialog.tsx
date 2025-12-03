@@ -1,5 +1,3 @@
-
-
 import React, { useState, useMemo, useRef } from 'react';
 import { X, User, Zap, Map as MapIcon, Clock, Sparkles, Monitor, Package, Sliders, Palette, Lightbulb, Camera, Smile, Cloud, Brush, Calculator, Ban, Shirt, CheckSquare, Square, Layers, Activity, Droplets, Download, Upload } from 'lucide-react';
 import { AppOptions, GlobalConfig } from '../types';
@@ -80,12 +78,20 @@ const OptionsDialog: React.FC<Props> = ({ isOpen, onClose, options, setOptions, 
   };
 
   const handleSaveConfig = () => {
+    const filenameInput = prompt("Enter a name for your configuration preset:", "chromaforge_config");
+    if (!filenameInput) return;
+
+    let filename = filenameInput.trim();
+    if (!filename.toLowerCase().endsWith('.kcf')) {
+        filename += '.kcf';
+    }
+
     const data = JSON.stringify(options, null, 2);
     const blob = new Blob([data], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'chromaforge_config.kcf';
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

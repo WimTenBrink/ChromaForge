@@ -1,5 +1,5 @@
 import React from 'react';
-import { RefreshCw, Trash2, AlertTriangle, Ban } from 'lucide-react';
+import { RefreshCw, Trash2, AlertTriangle, Ban, Search } from 'lucide-react';
 import { FailedItem } from '../types';
 
 interface Props {
@@ -7,13 +7,14 @@ interface Props {
   onRetry: (item: FailedItem) => void;
   onRetryAll: () => void;
   onDelete: (id: string) => void;
+  onZoom: (data: { url: string, title: string, metadata: string }) => void;
 }
 
-const FailedList: React.FC<Props> = ({ failedItems, onRetry, onRetryAll, onDelete }) => {
+const FailedList: React.FC<Props> = ({ failedItems, onRetry, onRetryAll, onDelete, onZoom }) => {
   const retryableCount = failedItems.filter(f => f.retryCount < 5).length;
 
   return (
-    <div className="w-72 bg-slate-900 border-l border-slate-800 flex flex-col h-full">
+    <div className="w-80 bg-slate-900 border-l border-slate-800 flex flex-col h-full shrink-0">
       <div className="p-4 border-b border-slate-800 flex justify-between items-center">
         <h2 className="font-bold text-red-400">Failed Jobs</h2>
         {retryableCount > 0 && (
@@ -35,16 +36,26 @@ const FailedList: React.FC<Props> = ({ failedItems, onRetry, onRetryAll, onDelet
             failedItems.map(item => {
                 const canRetry = item.retryCount < 5;
                 return (
-                    <div key={item.id} className="bg-slate-800/50 border border-red-900/30 rounded-lg overflow-hidden">
+                    <div key={item.id} className="bg-slate-800/50 border border-red-900/30 rounded-lg overflow-hidden group">
                         {/* Full Width Image Thumbnail */}
-                        <div className="w-full aspect-square bg-slate-950 relative border-b border-slate-800">
+                        <div 
+                            className="w-full aspect-square bg-slate-950 relative border-b border-slate-800 cursor-zoom-in"
+                            onClick={() => onZoom({
+                                url: item.sourceImagePreview,
+                                title: "Failed Source Image",
+                                metadata: item.error
+                            })}
+                        >
                             <img 
-                            src={item.sourceImagePreview} 
-                            className="w-full h-full object-cover opacity-60 grayscale" 
-                            alt="source" 
+                                src={item.sourceImagePreview} 
+                                className="w-full h-full object-cover opacity-60 grayscale" 
+                                alt="source" 
                             />
-                            <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none group-hover:hidden">
                                 <AlertTriangle className="text-red-500/50 w-12 h-12" />
+                            </div>
+                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/40 transition-opacity">
+                                <Search className="text-white" size={24} />
                             </div>
                         </div>
 

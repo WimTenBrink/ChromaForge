@@ -1,10 +1,18 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { X, ZoomIn, ZoomOut, Maximize, Move, ChevronLeft, ChevronRight } from 'lucide-react';
 import { GeneratedImage } from '../types';
 
+interface ViewableImage {
+    url: string;
+    title?: string;
+    metadata?: string;
+    id?: string;
+    originalFilename?: string;
+    optionsUsed?: string;
+}
+
 interface Props {
-  image: GeneratedImage | null;
+  image: ViewableImage | GeneratedImage | null;
   onClose: () => void;
   onNext?: () => void;
   onPrev?: () => void;
@@ -19,6 +27,17 @@ const ImageDetailDialog: React.FC<Props> = ({ image, onClose, onNext, onPrev, ha
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const imageRef = useRef<HTMLImageElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Helper to normalize data props
+  const getTitle = () => {
+      if (!image) return "";
+      return (image as GeneratedImage).originalFilename || image.title || "Image Viewer";
+  };
+  
+  const getMetadata = () => {
+      if (!image) return "";
+      return (image as GeneratedImage).optionsUsed || image.metadata || "";
+  };
 
   // Reset state when image opens
   useEffect(() => {
@@ -76,9 +95,9 @@ const ImageDetailDialog: React.FC<Props> = ({ image, onClose, onNext, onPrev, ha
         {/* Header */}
         <div className="flex items-center justify-between p-3 border-b border-slate-800 bg-slate-950 z-10">
           <div className="flex items-center gap-4 overflow-hidden">
-            <h3 className="text-emerald-400 font-bold truncate max-w-md">{image.originalFilename}</h3>
+            <h3 className="text-emerald-400 font-bold truncate max-w-md">{getTitle()}</h3>
             <span className="text-xs text-slate-500 truncate max-w-xl border-l border-slate-800 pl-4">
-                {image.optionsUsed}
+                {getMetadata()}
             </span>
           </div>
           <div className="flex items-center gap-2">

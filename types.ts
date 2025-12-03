@@ -78,32 +78,38 @@ export interface ImageAnalysis {
   markdownContent: string;
 }
 
-export interface InputImage {
-  id: string;
-  file: File | null; // Null if loaded from storage and file object not reconstructed yet, but we store base64
-  base64Data?: string; // For persistence
-  name: string;
-  type: string;
-  previewUrl: string;
-  status: 'QUEUED' | 'ANALYZING' | 'PROCESSING' | 'COMPLETED' | 'PARTIAL' | 'FAILED';
-  totalVariations: number;
-  completedVariations: number;
-  title?: string; // Generated title
-  analysis?: ImageAnalysis;
-  optionsSnapshot?: AppOptions; // The options selected when this image was added
+// Source Image Container (File Data)
+export interface SourceImage {
+    id: string;
+    file: File | null;
+    base64Data: string;
+    name: string;
+    type: string;
+    previewUrl: string;
+    analysis?: ImageAnalysis;
 }
 
+// Job (Execution Unit)
 export interface Job {
   id: string;
   sourceImageId: string;
-  sourceImagePreview: string;
+  
+  // Configuration
   originalFilename: string;
-  generatedTitle: string;
   prompt: string;
   optionsSummary: string;
   aspectRatio?: string;
-  status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
-  retryCount?: number;
+  optionsSnapshot: AppOptions;
+
+  // State
+  status: 'QUEUED' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+  retryCount: number;
+  error?: string;
+  
+  // Result
+  resultUrl?: string;
+  generatedTitle?: string;
+  timestamp?: number;
 }
 
 export interface GeneratedImage {
@@ -125,4 +131,12 @@ export interface FailedItem {
   error: string;
   originalJob?: Job;
   retryCount: number;
+}
+
+export interface InputImage {
+    // Legacy support for DB types if needed, but primarily mapped to SourceImage + Jobs now
+    id: string;
+    status: string;
+    // ... other fields kept optional for compatibility if strictly needed by old code, 
+    // but we are migrating away from this being the primary queue type.
 }

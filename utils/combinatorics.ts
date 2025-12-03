@@ -168,6 +168,7 @@ export const buildPromptFromCombo = (combo: any): string => {
     4. Maintain the original pose and gesture of the character(s) strictly.
     ${modeInstruction}
     6. If an option is not set (missing from the lists above), do not use it or infer it arbitrarily; use the original image content as the guide for that aspect.
+    7. IMPORTANT: Preserve all facial details, expressions, and features from the original line art. Do not distort the face.
     ${coverageInstruction}
     
     High quality, detailed, masterpiece.
