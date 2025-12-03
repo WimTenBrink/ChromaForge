@@ -15,6 +15,8 @@ export interface AppOptions {
   age: string[];
   skin: string[];
   hair: string[];
+  eyeColor: string[];
+  emotions: string[];
   clothes: string[];
   shoes: string[];
   species: string[];
@@ -24,12 +26,14 @@ export interface AppOptions {
   weather: string[];
   aspectRatio: string[];
   items: string[];
+  actions: string[];
   // New Creative Options
   artStyle: string[];
   lighting: string[];
   camera: string[];
   mood: string[];
   decorations: string[];
+  skinConditions: string[]; // New field for mud, blood, etc.
   
   replaceBackground: boolean;
   removeCharacters: boolean;
@@ -45,11 +49,14 @@ export interface GlobalConfig {
   itemGroups: Record<string, string[]>;
   decorationGroups: Record<string, string[]>;
   attireGroups: Record<string, string[]>;
+  skinConditionGroups: Record<string, string[]>; // New config group
   lists: {
       gender: string[];
       age: string[];
       skin: string[];
       hair: string[];
+      eyeColor: string[];
+      emotions: string[];
       shoes: string[];
       technology: string[];
       timeOfDay: string[];
@@ -59,6 +66,7 @@ export interface GlobalConfig {
       lighting: string[];
       camera: string[];
       mood: string[];
+      actions: string[];
   };
 }
 
@@ -82,6 +90,7 @@ export interface InputImage {
   completedVariations: number;
   title?: string; // Generated title
   analysis?: ImageAnalysis;
+  optionsSnapshot?: AppOptions; // The options selected when this image was added
 }
 
 export interface Job {
@@ -94,6 +103,7 @@ export interface Job {
   optionsSummary: string;
   aspectRatio?: string;
   status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+  retryCount?: number;
 }
 
 export interface GeneratedImage {
@@ -114,4 +124,5 @@ export interface FailedItem {
   optionsSummary: string;
   error: string;
   originalJob?: Job;
+  retryCount: number;
 }

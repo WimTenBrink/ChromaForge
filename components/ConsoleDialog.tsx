@@ -37,8 +37,16 @@ const ConsoleDialog: React.FC<Props> = ({ isOpen, onClose }) => {
     return true;
   });
 
+  const safeStringify = (obj: any) => {
+      try {
+          return JSON.stringify(obj, null, 2);
+      } catch (e) {
+          return `[Unable to stringify object: ${(e as Error).message}]`;
+      }
+  };
+
   const copyToClipboard = (entry: LogEntry) => {
-    const text = `[${new Date(entry.timestamp).toISOString()}] [${entry.level}] ${entry.title}\n${JSON.stringify(entry.details, null, 2)}`;
+    const text = `[${new Date(entry.timestamp).toISOString()}] [${entry.level}] ${entry.title}\n${safeStringify(entry.details)}`;
     navigator.clipboard.writeText(text);
   };
 
@@ -108,7 +116,7 @@ const ConsoleDialog: React.FC<Props> = ({ isOpen, onClose }) => {
                         <details className="mt-1">
                             <summary className="cursor-pointer text-slate-400 hover:text-slate-200 select-none">View Details</summary>
                             <pre className="mt-2 p-2 bg-black rounded text-slate-300 overflow-x-auto border border-slate-800">
-                                {JSON.stringify(log.details, null, 2)}
+                                {safeStringify(log.details)}
                             </pre>
                         </details>
                     </div>

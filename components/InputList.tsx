@@ -1,6 +1,5 @@
-
-import React, { useState, DragEvent } from 'react';
-import { Upload, X, Loader2, RefreshCw, Trash2 } from 'lucide-react';
+import React from 'react';
+import { Upload, X, Loader2, RefreshCw, Trash2, ArrowUp, ArrowDown, ChevronsUp, ChevronsDown } from 'lucide-react';
 import { InputImage, Job } from '../types';
 
 interface Props {
@@ -9,72 +8,20 @@ interface Props {
   onAddFiles: (files: FileList) => void;
   onRemove: (id: string) => void;
   onRerun: (id: string) => void;
+  onMove: (id: string, direction: 'up' | 'down' | 'top' | 'bottom') => void;
 }
 
-const InputList: React.FC<Props> = ({ inputs, activeJobs, onAddFiles, onRemove, onRerun }) => {
-  const [isDragging, setIsDragging] = useState(false);
-
-  const handleDragOver = (e: DragEvent<HTMLLabelElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(true);
-  };
-
-  const handleDragEnter = (e: DragEvent<HTMLLabelElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = (e: DragEvent<HTMLLabelElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    // Only set to false if we are actually leaving the label, not entering a child
-    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
-    setIsDragging(false);
-  };
-
-  const handleDrop = (e: DragEvent<HTMLLabelElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-    
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      // Filter for images
-      const files: File[] = Array.from(e.dataTransfer.files);
-      const imageFiles = files.filter(file => file.type.startsWith('image/'));
-      
-      if (imageFiles.length > 0) {
-        // Create a new DataTransfer to get a FileList
-        const dt = new DataTransfer();
-        imageFiles.forEach(file => dt.items.add(file));
-        onAddFiles(dt.files);
-      }
-    }
-  };
-
+const InputList: React.FC<Props> = ({ inputs, activeJobs, onAddFiles, onRemove, onRerun, onMove }) => {
+  
   return (
     <div className="w-72 bg-slate-900 border-r border-slate-800 flex flex-col h-full">
       <div className="p-4 border-b border-slate-800">
         <h2 className="font-bold text-slate-200 mb-4">Input Queue</h2>
-        <label 
-          onDragOver={handleDragOver}
-          onDragEnter={handleDragEnter}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-          className={`flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer transition-all group ${
-            isDragging 
-              ? 'border-emerald-500 bg-emerald-900/20' 
-              : 'border-slate-700 bg-slate-800 hover:bg-slate-750 hover:border-emerald-500'
-          }`}
-        >
-          <div className="flex flex-col items-center justify-center pt-5 pb-6 pointer-events-none">
-            <Upload className={`w-8 h-8 mb-2 transition-colors ${
-                isDragging ? 'text-emerald-400' : 'text-slate-400 group-hover:text-emerald-400'
-            }`} />
-            <p className={`text-xs ${isDragging ? 'text-emerald-300' : 'text-slate-400'}`}>
-                {isDragging ? 'Drop images here' : 'Click or Drag & Drop'}
-            </p>
+        {/* Simple Add Button for Click (Drag is global) */}
+        <label className="flex flex-col items-center justify-center w-full h-12 border border-dashed border-slate-700 rounded-lg cursor-pointer bg-slate-800 hover:bg-slate-750 hover:border-emerald-500 transition-all">
+          <div className="flex items-center gap-2 pointer-events-none text-slate-400">
+            <Upload className="w-4 h-4" />
+            <span className="text-xs font-bold">Add Images</span>
           </div>
           <input 
             type="file" 
@@ -92,10 +39,11 @@ const InputList: React.FC<Props> = ({ inputs, activeJobs, onAddFiles, onRemove, 
             No images queued.
           </div>
         )}
-        {inputs.map((input) => {
+        {inputs.map((input, index) => {
           // Find if there is an active job for this input
           const activeJob = activeJobs.find(job => job.sourceImageId === input.id);
           const isDone = input.status === 'COMPLETED' || input.status === 'PARTIAL' || input.status === 'FAILED';
+          const isQueued = input.status === 'QUEUED';
 
           return (
             <div key={input.id} className={`relative group bg-slate-800 rounded-lg overflow-hidden border ${
@@ -112,14 +60,39 @@ const InputList: React.FC<Props> = ({ inputs, activeJobs, onAddFiles, onRemove, 
                 </button>
               </div>
 
-              <div className="h-32 w-full overflow-hidden">
+              {/* Queue Controls */}
+              {isQueued && (
+                  <div className="absolute top-1 left-1 opacity-0 group-hover:opacity-100 transition-opacity z-10 flex flex-col gap-1">
+                      <div className="flex gap-1">
+                          <button onClick={() => onMove(input.id, 'top')} className="bg-black/50 hover:bg-emerald-600 text-white p-1 rounded backdrop-blur-sm" title="Move to Top">
+                              <ChevronsUp size={12} />
+                          </button>
+                          <button onClick={() => onMove(input.id, 'up')} className="bg-black/50 hover:bg-emerald-600 text-white p-1 rounded backdrop-blur-sm" title="Move Up">
+                              <ArrowUp size={12} />
+                          </button>
+                      </div>
+                      <div className="flex gap-1">
+                          <button onClick={() => onMove(input.id, 'down')} className="bg-black/50 hover:bg-emerald-600 text-white p-1 rounded backdrop-blur-sm" title="Move Down">
+                              <ArrowDown size={12} />
+                          </button>
+                          <button onClick={() => onMove(input.id, 'bottom')} className="bg-black/50 hover:bg-emerald-600 text-white p-1 rounded backdrop-blur-sm" title="Move to Bottom">
+                              <ChevronsDown size={12} />
+                          </button>
+                      </div>
+                  </div>
+              )}
+
+              {/* Full Width Image Thumbnail */}
+              <div className="w-full aspect-square overflow-hidden bg-slate-950">
                   <img src={input.previewUrl} alt="preview" className="w-full h-full object-cover" />
               </div>
+
               <div className="p-3">
                 <div className="flex justify-between items-center mb-1">
                     <span className="text-xs font-mono text-slate-400 truncate w-3/4" title={input.file ? input.file.name : input.name}>
                         {input.file ? input.file.name : input.name}
                     </span>
+                    {isQueued && <span className="text-[10px] text-slate-600 font-mono">#{index + 1}</span>}
                 </div>
                 <div className="flex justify-between items-center text-xs">
                       <span className={`font-bold flex items-center gap-1 ${

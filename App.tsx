@@ -1,11 +1,11 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
-import { Play, Pause, Settings, Terminal, Plus, Shield, ShieldCheck, Trash2, Loader2, AlertTriangle, Activity } from 'lucide-react';
+import { Play, Pause, Settings, Terminal, Plus, Shield, ShieldCheck, Trash2, Loader2, AlertTriangle, Activity, Book, Upload, Clock } from 'lucide-react';
 import InputList from './components/InputList';
 import FailedList from './components/FailedList';
 import OptionsDialog from './components/OptionsDialog';
 import ConsoleDialog from './components/ConsoleDialog';
 import ImageDetailDialog from './components/ImageDetailDialog';
+import ManualDialog from './components/ManualDialog';
 import { AppOptions, InputImage, Job, GeneratedImage, FailedItem, ImageAnalysis, GlobalConfig } from './types';
 import { DEFAULT_OPTIONS, MAX_CONCURRENT_JOBS } from './constants';
 import { generatePermutations, buildPromptFromCombo } from './utils/combinatorics';
@@ -28,12 +28,15 @@ const App: React.FC = () => {
   
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [isConsoleOpen, setIsConsoleOpen] = useState(false);
+  const [isManualOpen, setIsManualOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState<GeneratedImage | null>(null);
   
   const [apiKeyReady, setApiKeyReady] = useState(false);
-  const [clearConfirmation, setClearConfirmation] = useState(false);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
 
-  // Statistics for header
+  // Statistics & Timing
+  const [jobDurations, setJobDurations] = useState<number[]>([]);
+
   const getPermutationCount = (opts: AppOptions) => {
     return (Object.keys(opts) as Array<keyof AppOptions>).reduce((acc, key) => {
         const val = opts[key];
@@ -47,12 +50,40 @@ const App: React.FC = () => {
   };
 
   const permCount = getPermutationCount(options);
-  const queuedInputsCount = inputQueue.filter(i => i.status === 'QUEUED' || i.status === 'ANALYZING').length;
-  const projectedVariations = queuedInputsCount * permCount;
+  
+  // Projection is approximate
+  const projectedVariations = inputQueue.reduce((acc, item) => {
+      // If item has snapshot, use that, otherwise estimate with current
+      if (item.status === 'QUEUED' || item.status === 'ANALYZING') {
+          return acc + (item.totalVariations || permCount);
+      }
+      return acc;
+  }, 0);
 
   const totalVariationsScheduled = projectedVariations + pendingJobs.length + processingJobs.length + generatedImages.length + failedItems.length;
   const totalCompleted = generatedImages.length;
   const totalFailed = failedItems.length;
+
+  // Calculate ETR
+  const averageDurationMs = jobDurations.length > 0 
+      ? jobDurations.reduce((a, b) => a + b, 0) / jobDurations.length 
+      : 15000; // Default estimate 15s
+
+  const remainingItems = pendingJobs.length + processingJobs.length + projectedVariations;
+  const estimatedRemainingMs = remainingItems * averageDurationMs;
+
+  const formatTime = (ms: number) => {
+      if (remainingItems === 0) return "00:00";
+      const seconds = Math.floor((ms / 1000) % 60);
+      const minutes = Math.floor((ms / (1000 * 60)) % 60);
+      const hours = Math.floor((ms / (1000 * 60 * 60)));
+      
+      const m = minutes.toString().padStart(2, '0');
+      const s = seconds.toString().padStart(2, '0');
+      
+      if (hours > 0) return `${hours}:${m}:${s}`;
+      return `${m}:${s}`;
+  };
 
   // --- Persistence ---
 
@@ -137,7 +168,44 @@ const App: React.FC = () => {
 
   // --- Handlers ---
 
+  const handleDragOver = (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDraggingOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      // Ensure we are leaving the window, not just entering a child element
+      if (e.relatedTarget === null) {
+        setIsDraggingOver(false);
+      }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDraggingOver(false);
+      
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+          const files = Array.from<File>(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+          if (files.length > 0) {
+              const dt = new DataTransfer();
+              files.forEach(f => dt.items.add(f));
+              handleAddFiles(dt.files);
+          }
+      }
+  };
+
   const handleAddFiles = async (fileList: FileList) => {
+    // 1. Snapshot the current options so this batch remembers them
+    const optionsSnapshot = JSON.parse(JSON.stringify(options));
+    
+    // 2. Pre-calculate variations count for immediate feedback
+    const permutations = generatePermutations(optionsSnapshot);
+    const variationCount = permutations.length;
+
     const newInputs: InputImage[] = [];
     
     for (let i = 0; i < fileList.length; i++) {
@@ -156,13 +224,14 @@ const App: React.FC = () => {
             type: file.type,
             previewUrl: URL.createObjectURL(file),
             status: 'QUEUED',
-            totalVariations: 0,
-            completedVariations: 0
+            totalVariations: variationCount, // Immediate Feedback: "0 / 4"
+            completedVariations: 0,
+            optionsSnapshot: optionsSnapshot // Bind configuration to image
         });
     }
 
     setInputQueue(prev => [...prev, ...newInputs]);
-    log('INFO', 'Files added to queue', { count: newInputs.length });
+    log('INFO', 'Files added to queue with config snapshot', { count: newInputs.length, variationsPerImage: variationCount });
   };
 
   const handleRemoveInput = (id: string) => {
@@ -173,14 +242,35 @@ const App: React.FC = () => {
     setFailedItems(prev => prev.filter(f => f.sourceImageId !== id));
   };
 
+  const handleMoveInput = (id: string, direction: 'up' | 'down' | 'top' | 'bottom') => {
+      setInputQueue(prev => {
+          const index = prev.findIndex(i => i.id === id);
+          if (index === -1) return prev;
+          
+          const newQueue = [...prev];
+          const item = newQueue.splice(index, 1)[0];
+          
+          if (direction === 'top') {
+              newQueue.unshift(item);
+          } else if (direction === 'bottom') {
+              newQueue.push(item);
+          } else if (direction === 'up') {
+              newQueue.splice(Math.max(0, index - 1), 0, item);
+          } else if (direction === 'down') {
+              newQueue.splice(Math.min(newQueue.length, index + 1), 0, item);
+          }
+          
+          return newQueue;
+      });
+  };
+
   const handleRerunInput = (id: string) => {
       const input = inputQueue.find(i => i.id === id);
       if (!input) return;
 
       log('INFO', 'Rerunning input', { id, name: input.name });
 
-      // Reset the input state to QUEUED so the loop picks it up.
-      // We keep 'analysis' if it exists so we don't re-analyze.
+      // Note: Rerun keeps the original options snapshot. 
       setInputQueue(prev => prev.map(i => i.id === id ? {
           ...i,
           status: 'QUEUED',
@@ -194,8 +284,10 @@ const App: React.FC = () => {
   };
 
   const generateJobsForInput = (input: InputImage, generatedTitle: string): Job[] => {
-    // Generate permutations using global options
-    const permutations = generatePermutations(options);
+    // Generate permutations using the SNAPSHOT options saved with the input
+    const optionsToUse = input.optionsSnapshot || options;
+    const permutations = generatePermutations(optionsToUse);
+    
     return permutations.map(combo => ({
       id: crypto.randomUUID(),
       sourceImageId: input.id,
@@ -205,8 +297,32 @@ const App: React.FC = () => {
       prompt: buildPromptFromCombo(combo),
       optionsSummary: Object.values(combo).filter(Boolean).join(', '),
       aspectRatio: combo.aspectRatio,
-      status: 'PENDING'
+      status: 'PENDING',
+      retryCount: 0
     }));
+  };
+
+  const addJobsSafely = (newJobs: Job[]) => {
+      setPendingJobs(prev => {
+          // Deduplication Logic
+          const existingSignatures = new Set();
+          
+          prev.forEach(j => existingSignatures.add(`${j.sourceImageId}|${j.optionsSummary}`));
+          processingJobs.forEach(j => existingSignatures.add(`${j.sourceImageId}|${j.optionsSummary}`));
+          generatedImages.forEach(g => existingSignatures.add(`${g.sourceImageId}|${g.optionsUsed}`));
+          failedItems.forEach(f => existingSignatures.add(`${f.sourceImageId}|${f.optionsSummary}`));
+
+          const uniqueJobs = newJobs.filter(j => {
+              const sig = `${j.sourceImageId}|${j.optionsSummary}`;
+              if (existingSignatures.has(sig)) {
+                  log('WARN', 'Skipping duplicate job', { sig });
+                  return false;
+              }
+              return true;
+          });
+          
+          return [...prev, ...uniqueJobs];
+      });
   };
 
   const autoDownloadImage = (imageUrl: string, prefix: string, optionsSummary: string) => {
@@ -251,7 +367,6 @@ const App: React.FC = () => {
             return;
         }
 
-        // Just start. The loop will decide if there is work.
         setIsProcessing(true);
         log('INFO', 'Processing started', { queued: inputQueue.filter(i => i.status === 'QUEUED').length });
     }
@@ -267,20 +382,17 @@ const App: React.FC = () => {
           const nextInput = inputQueue.find(i => i.status === 'QUEUED');
           if (!nextInput) return;
 
-          // Check if analysis already exists (Rerun scenario) to skip unnecessary API calls
+          // Check if analysis already exists (Rerun scenario)
           if (nextInput.analysis) {
                log('INFO', 'Skipping Analysis (Cached)', { id: nextInput.id });
-               
                const newJobs = generateJobsForInput(nextInput, nextInput.title || 'Untitled');
-               
                setInputQueue(prev => prev.map(i => i.id === nextInput.id ? { 
                   ...i, 
                   status: 'PROCESSING',
                   totalVariations: newJobs.length 
                } : i));
-
-               setPendingJobs(prev => [...prev, ...newJobs]);
-               return; // Exit, job processing loop will pick up next
+               addJobsSafely(newJobs);
+               return; 
           }
 
           // Normal path: Analyze first
@@ -306,7 +418,7 @@ const App: React.FC = () => {
                   totalVariations: newJobs.length 
                } : i));
 
-              setPendingJobs(prev => [...prev, ...newJobs]);
+              addJobsSafely(newJobs);
 
           } catch (e: any) {
               log('ERROR', 'Analysis Failed', e);
@@ -316,18 +428,15 @@ const App: React.FC = () => {
                   sourceImageId: nextInput.id,
                   sourceImagePreview: nextInput.previewUrl,
                   optionsSummary: 'Analysis Phase',
-                  error: e.message
+                  error: e.message,
+                  retryCount: 0
               };
               setFailedItems(prev => [failed, ...prev]);
-              // Mark as FAILED. This stops the loop for this item.
               setInputQueue(prev => prev.map(i => i.id === nextInput.id ? { ...i, status: 'FAILED' } : i));
           }
       };
 
-      // Strict Sequential Processing Logic:
-      // Only start analyzing a new image if there is NO image currently being analyzed or processed.
       const isAnyImageActive = inputQueue.some(i => i.status === 'ANALYZING' || i.status === 'PROCESSING');
-      
       if (!isAnyImageActive && inputQueue.some(i => i.status === 'QUEUED')) {
           analyzeNext();
       }
@@ -343,27 +452,23 @@ const App: React.FC = () => {
     const activeProcessingInputs = inputQueue.filter(i => i.status === 'PROCESSING');
     
     if (activeProcessingInputs.length > 0 && pendingJobs.length === 0 && processingJobs.length === 0) {
-         // All jobs for current active image are done. Mark as COMPLETED.
          setInputQueue(prev => prev.map(i => {
              if (i.status === 'PROCESSING') {
-                 // Check if this input has associated failures
                  const hasFailures = failedItems.some(f => f.sourceImageId === i.id);
                  return { ...i, status: hasFailures ? 'PARTIAL' : 'COMPLETED' };
              }
              return i;
          }));
-         // Note: We do NOT turn off isProcessing here; the first useEffect will pick up the next image.
          return;
     }
 
-    // Check if entire batch is done (no queues, no active items)
+    // Check if entire batch is done
     if (pendingJobs.length === 0 && processingJobs.length === 0 && !inputQueue.some(i => i.status === 'QUEUED' || i.status === 'ANALYZING' || i.status === 'PROCESSING')) {
          setIsProcessing(false);
          log('INFO', 'All jobs finished', {});
          return;
     }
 
-    // Process Jobs Limit
     if (processingJobs.length >= MAX_CONCURRENT_JOBS) return;
 
     if (pendingJobs.length > 0) {
@@ -377,10 +482,10 @@ const App: React.FC = () => {
 
   const processJob = async (job: Job) => {
     setProcessingJobs(prev => [...prev, job]);
+    const startTime = Date.now();
     
     const input = inputQueue.find(i => i.id === job.sourceImageId);
     if (!input) {
-        // Input might have been deleted by user while job was pending
         setProcessingJobs(prev => prev.filter(j => j.id !== job.id));
         return;
     }
@@ -391,6 +496,9 @@ const App: React.FC = () => {
 
         const imageUrl = await processImage(data, job.prompt, input.type, job.aspectRatio);
         
+        const duration = Date.now() - startTime;
+        setJobDurations(prev => [...prev.slice(-19), duration]); // Keep last 20 timings
+
         const generated: GeneratedImage = {
             id: crypto.randomUUID(),
             sourceImageId: job.sourceImageId,
@@ -412,6 +520,7 @@ const App: React.FC = () => {
         }));
 
     } catch (error: any) {
+        const currentRetryCount = (job.retryCount || 0) + 1;
         const failed: FailedItem = {
             id: crypto.randomUUID(),
             jobId: job.id,
@@ -419,7 +528,8 @@ const App: React.FC = () => {
             sourceImagePreview: job.sourceImagePreview,
             optionsSummary: job.optionsSummary,
             error: error.message || "Unknown error",
-            originalJob: job
+            originalJob: job,
+            retryCount: currentRetryCount
         };
         setFailedItems(prev => [failed, ...prev]);
     } finally {
@@ -430,43 +540,41 @@ const App: React.FC = () => {
   // --- Retry Handlers ---
 
   const handleRetry = (item: FailedItem) => {
+      if (item.retryCount >= 5) {
+          log('WARN', 'Max retries reached for item', { id: item.id });
+          return;
+      }
       setFailedItems(prev => prev.filter(f => f.id !== item.id));
       
       if (item.jobId === 'ANALYSIS') {
-          // Retry analysis (entire input)
           setInputQueue(prev => prev.map(i => i.id === item.sourceImageId ? { ...i, status: 'QUEUED' } : i));
           if (!isProcessing) setIsProcessing(true);
       } else if (item.originalJob) {
-          // Retry specific job
-          setPendingJobs(prev => [item.originalJob!, ...prev]);
-          
-          // Ensure input is marked as processing so loop continues
-          setInputQueue(prev => prev.map(i => i.id === item.sourceImageId ? { 
-              ...i, 
-              status: 'PROCESSING' 
-          } : i));
-          
+          const retryJob: Job = { ...item.originalJob, retryCount: item.retryCount };
+          setPendingJobs(prev => [retryJob, ...prev]);
+          setInputQueue(prev => prev.map(i => i.id === item.sourceImageId ? { ...i, status: 'PROCESSING' } : i));
           if (!isProcessing) setIsProcessing(true);
       }
   };
 
   const handleRetryAll = () => {
-      const analysisFailures = failedItems.filter(f => f.jobId === 'ANALYSIS');
-      const jobFailures = failedItems.filter(f => f.jobId !== 'ANALYSIS' && f.originalJob);
-      
-      setFailedItems([]);
+      const retryableItems = failedItems.filter(f => f.retryCount < 5);
+      if (retryableItems.length === 0) return;
 
-      // Reset analysis inputs to QUEUED
+      const analysisFailures = retryableItems.filter(f => f.jobId === 'ANALYSIS');
+      const jobFailures = retryableItems.filter(f => f.jobId !== 'ANALYSIS' && f.originalJob);
+      
+      const idsToRetry = new Set(retryableItems.map(f => f.id));
+      setFailedItems(prev => prev.filter(f => !idsToRetry.has(f.id)));
+
       if (analysisFailures.length > 0) {
           const ids = new Set(analysisFailures.map(f => f.sourceImageId));
           setInputQueue(prev => prev.map(i => ids.has(i.id) ? { ...i, status: 'QUEUED' } : i));
       }
 
-      // Re-queue generation jobs
       if (jobFailures.length > 0) {
-          const jobsToRetry = jobFailures.map(f => f.originalJob!);
+          const jobsToRetry = jobFailures.map(f => ({ ...f.originalJob!, retryCount: f.retryCount }));
           setPendingJobs(prev => [...prev, ...jobsToRetry]);
-          
           const affectedInputIds = new Set(jobsToRetry.map(j => j.sourceImageId));
           setInputQueue(prev => prev.map(i => affectedInputIds.has(i.id) ? { ...i, status: 'PROCESSING' } : i));
       }
@@ -480,16 +588,8 @@ const App: React.FC = () => {
 
   const handleClearGallery = () => {
       if (generatedImages.length === 0) return;
-      
-      if (clearConfirmation) {
-          setGeneratedImages([]);
-          setClearConfirmation(false);
-          log('INFO', 'Gallery cleared by user', {});
-      } else {
-          setClearConfirmation(true);
-          // Auto reset after 3 seconds
-          setTimeout(() => setClearConfirmation(false), 3000);
-      }
+      setGeneratedImages([]);
+      log('INFO', 'Gallery cleared by user (No confirm)', {});
   };
   
   // --- Navigation Helpers ---
@@ -531,7 +631,22 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-slate-950 text-slate-200 font-sans">
+    <div 
+        className="flex flex-col h-screen bg-slate-950 text-slate-200 font-sans relative"
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+    >
+      {/* Global Drop Zone Overlay */}
+      {isDraggingOver && (
+          <div className="absolute inset-0 z-50 bg-emerald-900/80 backdrop-blur-sm flex flex-col items-center justify-center pointer-events-none animate-in fade-in duration-200">
+             <div className="p-8 bg-black/50 rounded-2xl border-4 border-dashed border-emerald-500 flex flex-col items-center">
+                <Upload size={64} className="text-emerald-400 mb-4 animate-bounce" />
+                <h2 className="text-3xl font-bold text-white mb-2">Drop Images Here</h2>
+                <p className="text-emerald-200">Add to Processing Queue</p>
+             </div>
+          </div>
+      )}
       
       {/* Header */}
       <header className="h-16 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-6 shrink-0 z-20">
@@ -558,8 +673,11 @@ const App: React.FC = () => {
             </div>
             <div className="w-px h-6 bg-slate-700" />
             <div className="flex flex-col items-center leading-none">
-                <span className="text-red-500 text-[9px]">FAILED</span>
-                <span className="text-red-400 font-bold">{totalFailed}</span>
+                <span className="text-slate-500 text-[9px]">ESTIMATED TIME</span>
+                <span className="text-amber-400 font-bold flex items-center gap-1">
+                    <Clock size={10} />
+                    {remainingItems > 0 ? formatTime(estimatedRemainingMs) : '00:00'}
+                </span>
             </div>
             <div className="w-px h-6 bg-slate-700" />
             
@@ -611,6 +729,14 @@ const App: React.FC = () => {
 
              <div className="w-px h-8 bg-slate-800 mx-2" />
 
+             <button
+                onClick={() => setIsManualOpen(true)}
+                className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+                title="User Manual"
+             >
+                 <Book size={20} />
+             </button>
+
              <button 
                 onClick={() => setIsOptionsOpen(true)} 
                 disabled={!globalConfig}
@@ -640,6 +766,7 @@ const App: React.FC = () => {
             onAddFiles={handleAddFiles}
             onRemove={handleRemoveInput}
             onRerun={handleRerunInput}
+            onMove={handleMoveInput}
         />
 
         {/* Center: Gallery */}
@@ -653,16 +780,10 @@ const App: React.FC = () => {
                    {generatedImages.length > 0 && (
                        <button 
                         onClick={handleClearGallery} 
-                        className={`flex items-center gap-1 transition-colors cursor-pointer ${
-                            clearConfirmation ? 'text-red-500 font-bold' : 'text-slate-400 hover:text-red-400'
-                        }`}
+                        className="flex items-center gap-1 transition-colors cursor-pointer text-slate-400 hover:text-red-400"
                         type="button"
                        >
-                           {clearConfirmation ? (
-                               <>Confirm Clear?</>
-                           ) : (
-                               <><Trash2 size={12} /> Clear Gallery</>
-                           )}
+                           <Trash2 size={12} /> Clear Gallery
                        </button>
                    )}
                    <span>
@@ -679,6 +800,7 @@ const App: React.FC = () => {
                             <Plus size={48} className="opacity-20" />
                         </div>
                         <p>Generated artworks will appear here.</p>
+                        <p className="text-xs mt-2 text-slate-600">Drag images anywhere to add them.</p>
                     </div>
                 ) : (
                     <div className="columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4 space-y-4 pb-20">
@@ -727,6 +849,11 @@ const App: React.FC = () => {
       <ConsoleDialog 
         isOpen={isConsoleOpen}
         onClose={() => setIsConsoleOpen(false)}
+      />
+
+      <ManualDialog 
+        isOpen={isManualOpen}
+        onClose={() => setIsManualOpen(false)}
       />
 
       <ImageDetailDialog 

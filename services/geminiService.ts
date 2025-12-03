@@ -13,7 +13,13 @@ const getErrorMessage = (err: any): string => {
       // Check for common API error patterns
       if (typeof err.message === 'string') return err.message;
       if (err.error && typeof err.error.message === 'string') return err.error.message; // Google API standard
+      if (err.statusText) return `HTTP Error ${err.status || 'Unknown'}: ${err.statusText}`;
       
+      // Check for prompt blocking specifically
+      if (err.response?.promptFeedback?.blockReason) {
+          return `Request blocked: ${err.response.promptFeedback.blockReason}`;
+      }
+
       // If toString returns default object string, try JSON stringify
       if (typeof err.toString === 'function' && err.toString() !== '[object Object]') {
           return err.toString();
@@ -33,17 +39,31 @@ const getErrorMessage = (err: any): string => {
 const formatErrorForLog = (err: any) => {
   const message = getErrorMessage(err);
   let stack = undefined;
-  let raw = err;
+  let raw: any = {};
 
   if (err instanceof Error) {
       stack = err.stack;
       // Capture extra properties on the error object
-      raw = {};
-      Object.getOwnPropertyNames(err).forEach(prop => {
+      const props = Object.getOwnPropertyNames(err);
+      props.forEach(prop => {
           if (prop !== 'stack' && prop !== 'message') {
-              (raw as any)[prop] = (err as any)[prop];
+              try {
+                // Only copy if serializable
+                const val = (err as any)[prop];
+                JSON.stringify(val); // Test serialization
+                raw[prop] = val;
+              } catch {
+                raw[prop] = '[Non-serializable]';
+              }
           }
       });
+  } else {
+      try {
+          JSON.stringify(err);
+          raw = err;
+      } catch {
+          raw = '[Non-serializable Error Object]';
+      }
   }
 
   return {
@@ -154,7 +174,13 @@ export const processImage = async (file: File | string, prompt: string, mimeType
             ? `Model blocked request. Reason: ${blockReason}` 
             : 'Model returned no candidates.';
         
-        log('ERROR', 'No candidates in response', { response });
+        // Sanitize response log
+        const safeResponseLog = {
+            promptFeedback: (response as any).promptFeedback,
+            usageMetadata: response.usageMetadata
+        };
+        
+        log('ERROR', 'No candidates in response', { response: safeResponseLog });
         throw new Error(msg);
     }
 
@@ -198,7 +224,9 @@ export const processImage = async (file: File | string, prompt: string, mimeType
             finishReason: reason,
             textResponse,
             safetyRatings,
-            rawResponse: response 
+            // Do NOT log the full 'response' object here as it may contain circular refs or be huge.
+            // Only log safe, necessary parts.
+            usage: response.usageMetadata
         };
         
         log('ERROR', 'No image data in response', details);
@@ -209,7 +237,8 @@ export const processImage = async (file: File | string, prompt: string, mimeType
     return `data:${outputMimeType};base64,${generatedImageBase64}`;
 
   } catch (error: any) {
-    log('ERROR', 'Gemini API Error', formatErrorForLog(error));
+    const formatted = formatErrorForLog(error);
+    log('ERROR', 'Gemini API Error', formatted);
     throw ensureError(error);
   }
 };

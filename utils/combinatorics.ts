@@ -1,5 +1,3 @@
-
-
 import { AppOptions } from "../types";
 
 /**
@@ -65,6 +63,12 @@ export const generatePermutations = (options: AppOptions) => {
   });
 };
 
+const shouldInclude = (value: string | undefined): boolean => {
+    if (!value) return false;
+    const v = String(value).toLowerCase();
+    return !v.startsWith("as-is") && !v.startsWith("original") && v !== "default" && v !== "none";
+};
+
 export const buildPromptFromCombo = (combo: any): string => {
   // Conditionally build lines only for present options
   const details: string[] = [];
@@ -72,12 +76,14 @@ export const buildPromptFromCombo = (combo: any): string => {
   
   // Only add character details if we are NOT removing characters
   if (!combo.removeCharacters) {
-      if (combo.species) details.push(`- Species: ${combo.species}`);
-      if (combo.gender) details.push(`- Gender: ${combo.gender}`);
-      if (combo.age) details.push(`- Age: ${combo.age}`);
-      if (combo.skin) details.push(`- Skin: ${combo.skin}`);
-      if (combo.hair) details.push(`- Hair: ${combo.hair}`);
-      if (combo.clothes) {
+      if (shouldInclude(combo.species)) details.push(`- Species: ${combo.species}`);
+      if (shouldInclude(combo.gender)) details.push(`- Gender: ${combo.gender}`);
+      if (shouldInclude(combo.age)) details.push(`- Age: ${combo.age}`);
+      if (shouldInclude(combo.skin)) details.push(`- Skin: ${combo.skin}`);
+      if (shouldInclude(combo.hair)) details.push(`- Hair: ${combo.hair}`);
+      if (shouldInclude(combo.eyeColor)) details.push(`- Eye Color: ${combo.eyeColor}`);
+      if (shouldInclude(combo.emotions)) details.push(`- Emotion/Expression: ${combo.emotions}`);
+      if (shouldInclude(combo.clothes)) {
           details.push(`- Clothes/Attire: ${combo.clothes}`);
           // Check for implied nudity keywords to trigger safety instruction
           // Using lowercase check for robustness against combined strings "Option + Option"
@@ -92,24 +98,34 @@ export const buildPromptFromCombo = (combo: any): string => {
               requiresNudityCoverage = true;
           }
       }
-      if (combo.shoes) details.push(`- Shoes: ${combo.shoes}`);
-      if (combo.items) details.push(`- Item(s) equipped/holding: ${combo.items}`);
-      if (combo.decorations) details.push(`- Body Decorations/Features: ${combo.decorations}`);
+      if (shouldInclude(combo.shoes)) details.push(`- Shoes: ${combo.shoes}`);
+      if (shouldInclude(combo.items)) details.push(`- Item(s) equipped/holding: ${combo.items}`);
+      if (shouldInclude(combo.decorations)) details.push(`- Body Decorations/Features: ${combo.decorations}`);
+      if (shouldInclude(combo.skinConditions)) details.push(`- Skin Condition/Surface: ${combo.skinConditions}`);
+      if (shouldInclude(combo.actions)) details.push(`- Action/Activity: ${combo.actions}`);
   }
   
   const setting: string[] = [];
-  if (combo.technology) setting.push(`- Technology Level: ${combo.technology}`);
-  if (combo.environment) setting.push(`- Environment: ${combo.environment}`);
-  if (combo.timeOfDay) setting.push(`- Time of Day: ${combo.timeOfDay}`);
-  if (combo.weather) setting.push(`- Weather: ${combo.weather}`);
+  if (shouldInclude(combo.technology)) setting.push(`- Technology Level: ${combo.technology}`);
+  if (shouldInclude(combo.environment)) setting.push(`- Environment: ${combo.environment}`);
+  if (shouldInclude(combo.timeOfDay)) setting.push(`- Time of Day: ${combo.timeOfDay}`);
+  if (shouldInclude(combo.weather)) setting.push(`- Weather: ${combo.weather}`);
   
   const style: string[] = [];
-  if (combo.artStyle) style.push(`- Art Style: ${combo.artStyle}`);
-  if (combo.lighting) style.push(`- Lighting: ${combo.lighting}`);
-  if (combo.camera) style.push(`- Camera/Lens: ${combo.camera}`);
-  if (combo.mood) style.push(`- Mood/Atmosphere: ${combo.mood}`);
+  if (shouldInclude(combo.artStyle)) style.push(`- Art Style: ${combo.artStyle}`);
+  if (shouldInclude(combo.lighting)) style.push(`- Lighting: ${combo.lighting}`);
+  
+  if (shouldInclude(combo.camera)) {
+      style.push(`- Camera/Lens: ${combo.camera}`);
+      // Explicit instruction for Full Body requests to ensure framing is correct
+      if (String(combo.camera).toLowerCase().includes("full body")) {
+          style.push("IMPORTANT: Ensure the FULL BODY of the character is visible within the frame, from head to toe.");
+      }
+  }
+  
+  if (shouldInclude(combo.mood)) style.push(`- Mood/Atmosphere: ${combo.mood}`);
 
-  if (combo.aspectRatio && combo.aspectRatio !== 'Original') {
+  if (shouldInclude(combo.aspectRatio) && combo.aspectRatio !== 'Original') {
       setting.push(`- Aspect Ratio: ${combo.aspectRatio}`);
   }
 
@@ -137,7 +153,7 @@ export const buildPromptFromCombo = (combo: any): string => {
     It must look like a real picture or high-end render.
     
     Character Details:
-    ${details.length > 0 ? details.join('\n    ') : 'N/A (Landscape Mode)'}
+    ${details.length > 0 ? details.join('\n    ') : 'N/A (Landscape Mode or As-Is)'}
     
     Setting:
     ${setting.join('\n    ')}
@@ -149,7 +165,7 @@ export const buildPromptFromCombo = (combo: any): string => {
     1. Apply the 'Species' setting (if specified) to the main humanoid character in the line art.
     2. Ensure strict logical consistency between the Technology/Environment and the Character's attire. 
     3. Make sure people in the generated images wear the proper clothes for their technology and the environment, including the clothing option set for the character.
-    4. If the requested Clothes or Shoes option (e.g. Space Suit) contradicts the Technology Level (e.g. Bronze Age), prioritize the Technology Level and adapt the clothing to fit that era. No space suits in the Bronze age.
+    4. Maintain the original pose and gesture of the character(s) strictly.
     ${modeInstruction}
     6. If an option is not set (missing from the lists above), do not use it or infer it arbitrarily; use the original image content as the guide for that aspect.
     ${coverageInstruction}

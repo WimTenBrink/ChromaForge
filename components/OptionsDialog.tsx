@@ -1,7 +1,7 @@
 
 
-import React, { useState, useMemo } from 'react';
-import { X, User, Zap, Map as MapIcon, Clock, Sparkles, Monitor, Package, Sliders, Palette, Lightbulb, Camera, Smile, Cloud, Brush, Calculator, Ban, Shirt, CheckSquare, Square, Layers } from 'lucide-react';
+import React, { useState, useMemo, useRef } from 'react';
+import { X, User, Zap, Map as MapIcon, Clock, Sparkles, Monitor, Package, Sliders, Palette, Lightbulb, Camera, Smile, Cloud, Brush, Calculator, Ban, Shirt, CheckSquare, Square, Layers, Activity, Droplets, Download, Upload } from 'lucide-react';
 import { AppOptions, GlobalConfig } from '../types';
 import { DEFAULT_OPTIONS } from '../constants';
 
@@ -14,7 +14,8 @@ interface Props {
 }
 
 const OptionsDialog: React.FC<Props> = ({ isOpen, onClose, options, setOptions, config }) => {
-  const [activeTab, setActiveTab] = useState<'CHAR' | 'ATTIRE' | 'SPECIES' | 'ITEMS' | 'DECOR' | 'TECH' | 'ENV' | 'TIME' | 'WEATHER' | 'RATIO' | 'STYLE' | 'LIGHTING' | 'CAMERA' | 'MOOD' | 'CUSTOM'>('CHAR');
+  const [activeTab, setActiveTab] = useState<'CHAR' | 'ATTIRE' | 'SPECIES' | 'ITEMS' | 'DECOR' | 'SKIN_FX' | 'TECH' | 'ENV' | 'TIME' | 'WEATHER' | 'RATIO' | 'STYLE' | 'LIGHTING' | 'CAMERA' | 'MOOD' | 'ACTION' | 'CUSTOM'>('CHAR');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const permutationCount = useMemo(() => {
     return (Object.keys(options) as Array<keyof AppOptions>).reduce((acc, key) => {
@@ -76,6 +77,39 @@ const OptionsDialog: React.FC<Props> = ({ isOpen, onClose, options, setOptions, 
             ? current.filter(c => c !== category)
             : [...current, category]
       });
+  };
+
+  const handleSaveConfig = () => {
+    const data = JSON.stringify(options, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'chromaforge_config.kcf';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleLoadConfig = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        try {
+            const parsed = JSON.parse(event.target?.result as string);
+            // Merge with default options to ensure all required fields exist even if the file is old
+            setOptions({ ...DEFAULT_OPTIONS, ...parsed });
+        } catch (err) {
+            console.error("Failed to parse config file", err);
+            alert("Failed to load configuration. The file might be corrupted.");
+        }
+        // Reset input
+        if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+    reader.readAsText(file);
   };
 
   const renderOptionItem = (category: keyof AppOptions, item: string) => {
@@ -258,7 +292,9 @@ const OptionsDialog: React.FC<Props> = ({ isOpen, onClose, options, setOptions, 
                { id: 'ATTIRE', label: 'Attire', icon: Shirt },
                { id: 'SPECIES', label: 'Species', icon: Sparkles },
                { id: 'ITEMS', label: 'Items', icon: Package },
+               { id: 'ACTION', label: 'Actions', icon: Activity },
                { id: 'DECOR', label: 'Decorations', icon: Brush },
+               { id: 'SKIN_FX', label: 'Skin Effects', icon: Droplets },
                { id: 'TECH', label: 'Technology', icon: Zap },
                { id: 'ENV', label: 'Environment', icon: MapIcon },
                { id: 'TIME', label: 'Time of Day', icon: Clock },
@@ -299,7 +335,9 @@ const OptionsDialog: React.FC<Props> = ({ isOpen, onClose, options, setOptions, 
                     {renderCheckboxes('gender', 'Gender')}
                     {renderCheckboxes('age', 'Age')}
                     {renderCheckboxes('skin', 'Skin Color')}
+                    {renderCheckboxes('eyeColor', 'Eye Color')}
                     {renderCheckboxes('hair', 'Hair Color')}
+                    {renderCheckboxes('emotions', 'Emotions & Expressions')}
                 </div>
               </div>
             )}
@@ -345,6 +383,19 @@ const OptionsDialog: React.FC<Props> = ({ isOpen, onClose, options, setOptions, 
                  </div>
               </div>
             )}
+            {activeTab === 'ACTION' && (
+              <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+                 {options.removeCharacters && (
+                    <div className="p-4 bg-red-900/20 border border-red-500/30 rounded-lg flex items-center gap-3 text-red-200 mb-4">
+                        <Ban size={20} />
+                        <span className="text-sm font-medium">Action options are disabled in Landscape Mode.</span>
+                    </div>
+                 )}
+                 <div className={options.removeCharacters ? 'opacity-30 pointer-events-none grayscale' : ''}>
+                     {renderCheckboxes('actions', 'Actions & Poses')}
+                 </div>
+              </div>
+            )}
             {activeTab === 'DECOR' && (
               <div className="animate-in fade-in slide-in-from-right-4 duration-300">
                   {options.removeCharacters && (
@@ -355,6 +406,19 @@ const OptionsDialog: React.FC<Props> = ({ isOpen, onClose, options, setOptions, 
                   )}
                   <div className={options.removeCharacters ? 'opacity-30 pointer-events-none grayscale' : ''}>
                       {renderGroups(config.decorationGroups, 'decorations', 'Decorations Selection')}
+                  </div>
+              </div>
+            )}
+            {activeTab === 'SKIN_FX' && (
+              <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+                  {options.removeCharacters && (
+                    <div className="p-4 bg-red-900/20 border border-red-500/30 rounded-lg flex items-center gap-3 text-red-200 mb-4">
+                        <Ban size={20} />
+                        <span className="text-sm font-medium">Skin effect options are disabled in Landscape Mode.</span>
+                    </div>
+                  )}
+                  <div className={options.removeCharacters ? 'opacity-30 pointer-events-none grayscale' : ''}>
+                      {renderGroups(config.skinConditionGroups, 'skinConditions', 'Mud, Blood & Paint')}
                   </div>
               </div>
             )}
@@ -461,19 +525,49 @@ const OptionsDialog: React.FC<Props> = ({ isOpen, onClose, options, setOptions, 
         </div>
         
         {/* Footer */}
-        <div className="p-4 border-t border-slate-800 bg-slate-950 flex justify-end gap-3">
-             <button 
-                onClick={() => setOptions(DEFAULT_OPTIONS)}
-                className="px-4 py-2 text-sm text-slate-400 hover:text-white transition-colors"
-             >
-                 Reset to Defaults
-             </button>
-             <button 
-                onClick={onClose}
-                className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium transition-colors"
-             >
-                 Done
-             </button>
+        <div className="p-4 border-t border-slate-800 bg-slate-950 flex justify-between items-center">
+            {/* Left Actions (Files) */}
+            <div className="flex items-center gap-2">
+                <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    className="hidden" 
+                    accept=".kcf,.json" 
+                    onChange={handleLoadConfig}
+                />
+                <button 
+                    onClick={handleSaveConfig}
+                    className="flex items-center gap-2 px-3 py-2 text-slate-400 hover:text-emerald-400 bg-slate-900 border border-slate-700 hover:border-emerald-500/50 rounded-lg text-sm transition-all"
+                    title="Save current configuration to .kcf file"
+                >
+                    <Download size={14} /> 
+                    <span className="hidden sm:inline">Save Preset</span>
+                </button>
+                <button 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex items-center gap-2 px-3 py-2 text-slate-400 hover:text-indigo-400 bg-slate-900 border border-slate-700 hover:border-indigo-500/50 rounded-lg text-sm transition-all"
+                    title="Load configuration from .kcf file"
+                >
+                    <Upload size={14} /> 
+                    <span className="hidden sm:inline">Load Preset</span>
+                </button>
+            </div>
+
+            {/* Right Actions (Save/Reset) */}
+            <div className="flex items-center gap-3">
+                 <button 
+                    onClick={() => setOptions(DEFAULT_OPTIONS)}
+                    className="px-4 py-2 text-sm text-slate-500 hover:text-white transition-colors"
+                 >
+                     Reset Defaults
+                 </button>
+                 <button 
+                    onClick={onClose}
+                    className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium transition-colors"
+                 >
+                     Done
+                 </button>
+            </div>
         </div>
       </div>
     </div>

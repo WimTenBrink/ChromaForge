@@ -1,123 +1,132 @@
 {
   "speciesGroups": {
     "Star Wars": [
-      "Twi'lek", "Togruta", "Zabrak", "Wookiee", "Mandalorian", "Rodian", "Kel Dor", "Mirialan", "Mon Calamari", "Jawa", "Ewok", "Chiss"
+      "As-Is (Skip)", "Chiss", "Ewok", "Jawa", "Kel Dor", "Mandalorian", "Mirialan", "Mon Calamari", "Rodian", "Togruta", "Twi'lek", "Wookiee", "Zabrak"
     ],
     "Star Trek": [
-      "Vulcan", "Klingon", "Andorian", "Borg", "Trill", "Orion", "Ferengi", "Romulan", "Cardassian", "Bajoran", "Gorn"
+      "As-Is (Skip)", "Andorian", "Bajoran", "Borg", "Cardassian", "Ferengi", "Gorn", "Klingon", "Orion", "Romulan", "Trill", "Vulcan"
     ],
     "Dungeons & Dragons": [
-      "Elf", "Drow", "Orc", "Tiefling", "Dragonborn", "Tabaxi", "Gnome", "Dwarf", "Half-Orc", "Genasi", "Goblin", "Halfling", "Aasimar", "Firbolg"
+      "As-Is (Skip)", "Aasimar", "Dragonborn", "Drow", "Dwarf", "Elf", "Firbolg", "Genasi", "Gnome", "Goblin", "Half-Orc", "Halfling", "Orc", "Tabaxi", "Tiefling"
     ],
     "Lord of the Rings": [
-      "Hobbit", "Uruk-hai", "High Elf", "Wood Elf"
+      "As-Is (Skip)", "High Elf", "Hobbit", "Uruk-hai", "Wood Elf"
     ],
     "Avatar": [
-      "Na'vi (Forest)", "Na'vi (Reef)"
+      "As-Is (Skip)", "Na'vi (Forest)", "Na'vi (Reef)"
     ],
     "Mass Effect": [
-      "Asari", "Turian", "Krogan", "Salarian", "Quarian", "Drell"
+      "As-Is (Skip)", "Asari", "Drell", "Krogan", "Quarian", "Salarian", "Turian"
     ],
     "Halo": [
-      "Sangheili (Elite)", "Spartan", "Unggoy (Grunt)"
+      "As-Is (Skip)", "Sangheili (Elite)", "Spartan", "Unggoy (Grunt)"
     ],
     "Warcraft": [
-      "Night Elf", "Draenei", "Blood Elf", "Tauren", "Undead", "Troll", "Worgen"
+      "As-Is (Skip)", "Blood Elf", "Draenei", "Night Elf", "Tauren", "Troll", "Undead", "Worgen"
     ],
     "Elder Scrolls": [
-      "Khajiit", "Argonian", "Dunmer", "Altmer", "Bosmer"
+      "As-Is (Skip)", "Altmer", "Argonian", "Bosmer", "Dunmer", "Khajiit"
     ],
     "Generic / Sci-Fi / Horror": [
-      "Human", "Cyborg", "Android", "Zombie", "Vampire", "Werewolf", "Fairy", "Mermaid", "Angel", "Demon", "Succubus", "Centaur", "Alien Grey", "Reptilian"
+      "As-Is (Skip)", "Alien Grey", "Android", "Angel", "Centaur", "Cyborg", "Demon", "Fairy", "Human", "Mermaid", "Reptilian", "Succubus", "Vampire", "Werewolf", "Zombie"
     ]
   },
   "environmentGroups": {
     "Indoors": [
-      "Living Room", "Bathroom", "Dining Room", "Library", "Laboratory", "Tavern", "Throne Room", "Bedroom", "Kitchen", "Attic", "Basement", "Office", "Temple Interior", "Cave", "Bunker"
+      "As-Is (Skip)", "Attic", "Basement", "Bathroom", "Bunker", "Cave", "Dining Room", "Kitchen", "Laboratory", "Library", "Living Room", "Office", "Tavern", "Temple Interior", "Throne Room"
     ],
     "Outdoors (Nature)": [
-      "Forest", "Jungle", "Desert", "Tundra", "Mountain Peak", "River Bank", "Beach", "Meadow", "Swamp", "Canyon", "Volcano"
+      "As-Is (Skip)", "Beach", "Canyon", "Desert", "Forest", "Jungle", "Meadow", "Mountain Peak", "River Bank", "Swamp", "Tundra", "Volcano"
     ],
     "Outdoors (Urban)": [
-      "City Street", "Village Square", "Cyberpunk Alley", "Ruins", "Skyscraper Rooftop", "Market", "Slums", "Industrial Zone"
+      "As-Is (Skip)", "City Street", "Cyberpunk Alley", "Industrial Zone", "Market", "Ruins", "Skyscraper Rooftop", "Slums", "Village Square"
     ],
     "Space": [
-      "Space Station", "Spaceship Bridge", "Moon Surface", "Alien Planet", "Deep Space", "Nebula", "Asteroid Field"
+      "As-Is (Skip)", "Alien Planet", "Asteroid Field", "Deep Space", "Moon Surface", "Nebula", "Space Station", "Spaceship Bridge"
     ],
     "Fantasy": [
-      "Floating Island", "Enchanted Forest", "Crystal Cave", "Wizard's Tower", "Dungeon", "Hellscape", "Heaven"
+      "As-Is (Skip)", "Crystal Cave", "Dungeon", "Enchanted Forest", "Floating Island", "Heaven", "Hellscape", "Wizard's Tower"
     ],
     "Sci-Fi": [
-      "Cryo Chamber", "Reactor Core", "Holodeck", "Server Room", "Robot Factory"
+      "As-Is (Skip)", "Cryo Chamber", "Holodeck", "Reactor Core", "Robot Factory", "Server Room"
     ],
     "Historical": [
-      "Colosseum", "Pyramid", "Castle Courtyard", "Saloon", "Trench"
+      "As-Is (Skip)", "Castle Courtyard", "Colosseum", "Pyramid", "Saloon", "Trench"
     ],
     "Underwater": [
-      "Coral Reef", "Deep Sea", "Sunken Ship", "Atlantis"
+      "As-Is (Skip)", "Atlantis", "Coral Reef", "Deep Sea", "Sunken Ship"
     ],
     "Abstract / Studio": [
-      "White Background", "Green Screen", "Studio Lighting", "Abstract Geometric"
+      "As-Is (Skip)", "Abstract Geometric", "Green Screen", "Studio Lighting", "White Background"
     ]
   },
   "itemGroups": {
     "Weapons": [
-      "Sword", "Blaster", "Bow", "Staff", "Axe", "Shield", "Lightsaber", "Dagger", "Spear", "Crossbow"
+      "As-Is (Skip)", "Axe", "Blaster", "Bow", "Crossbow", "Dagger", "Lightsaber", "Shield", "Spear", "Staff", "Sword"
     ],
     "Tools": [
-      "Hammer", "Wrench", "Scanner", "Tablet", "Scroll", "Map", "Compass", "Flashlight", "Binoculars", "Pickaxe"
+      "As-Is (Skip)", "Binoculars", "Compass", "Flashlight", "Hammer", "Map", "Pickaxe", "Scanner", "Scroll", "Tablet", "Wrench"
     ],
     "Technology": [
-      "Hologram", "Datapad", "Robot Companion", "Drone", "Communicator"
+      "As-Is (Skip)", "Communicator", "Datapad", "Drone", "Hologram", "Robot Companion"
     ],
     "Magical": [
-      "Wand", "Crystal Orb", "Potion", "Amulet", "Grimoire", "Rune Stone", "Enchanted Ring"
+      "As-Is (Skip)", "Amulet", "Crystal Orb", "Enchanted Ring", "Grimoire", "Potion", "Rune Stone", "Wand"
     ],
     "Accessories": [
-      "Backpack", "Cape", "Hat", "Glasses", "Jewelry", "Cybernetics", "Mask", "Crown"
+      "As-Is (Skip)", "Backpack", "Cape", "Crown", "Cybernetics", "Glasses", "Hat", "Jewelry", "Mask"
     ],
     "Decorations": [
-      "Flowers", "Skull", "Candle", "Flag", "Lantern", "Musical Instrument"
+      "As-Is (Skip)", "Candle", "Flag", "Flowers", "Lantern", "Musical Instrument", "Skull"
     ]
   },
   "attireGroups": {
-    "Casual": ["T-Shirt & Jeans", "Hoodie & Sweatpants", "Summer Dress", "Oversized Sweater", "Tank Top & Shorts", "Flannel Shirt", "Leather Jacket"],
-    "Office / Formal": ["Business Suit", "Evening Gown", "Blazer & Skirt", "Tuxedo", "Cocktail Dress", "Pencil Skirt & Blouse", "Waistcoat"],
-    "Uniforms": ["Nurse Uniform", "Police Uniform", "School Uniform", "Chef's Whites", "Military Fatigues", "Pilot Suit", "Lab Coat", "Maid Outfit"],
-    "Armor / Fantasy": ["Plate Mail", "Leather Armor", "Chainmail", "Cybernetic Suit", "Power Armor", "Wizard Robes", "Thief Leathers", "Paladin Armor"],
-    "Beach / Swim": ["Bikini", "Swim Trunks", "One-Piece Swimsuit", "Sarong", "Wetsuit"],
+    "Casual": ["As-Is (Skip)", "Flannel Shirt", "Hoodie & Sweatpants", "Leather Jacket", "Oversized Sweater", "Summer Dress", "Tank Top & Shorts", "T-Shirt & Jeans"],
+    "Office / Formal": ["As-Is (Skip)", "Blazer & Skirt", "Business Suit", "Cocktail Dress", "Evening Gown", "Pencil Skirt & Blouse", "Tuxedo", "Waistcoat"],
+    "Uniforms": ["As-Is (Skip)", "Chef's Whites", "Lab Coat", "Maid Outfit", "Military Fatigues", "Nurse Uniform", "Pilot Suit", "Police Uniform", "School Uniform"],
+    "Armor / Fantasy": ["As-Is (Skip)", "Chainmail", "Cybernetic Suit", "Leather Armor", "Paladin Armor", "Plate Mail", "Power Armor", "Thief Leathers", "Wizard Robes"],
+    "Beach / Swim": ["As-Is (Skip)", "Bikini", "One-Piece Swimsuit", "Sarong", "Swim Trunks", "Wetsuit"],
     "Implied Nudity / Artistic": [
-      "Nude (Implied)", "Body Paint (Gold)", "Body Paint (Tribal)", "Body Paint (Silver)", "Strategic Jewelry", "Silk Sheets Only", "Flowers & Vines", "Shadows & Silhouette", "Mud & Warpaint", "Chained"
+      "As-Is (Skip)", "Body Paint (Gold)", "Body Paint (Silver)", "Body Paint (Tribal)", "Chained", "Flowers & Vines", "Mud & Warpaint", "Nude (Implied)", "Shadows & Silhouette", "Silk Sheets Only", "Strategic Jewelry"
     ]
   },
   "decorationGroups": {
-    "Tattoos": ["Tribal Tattoo", "Sleeve Tattoo", "Face Tattoo", "Minimalist Tattoo", "Dragon Tattoo", "Bio-mech Tattoo", "Henna", "Yakuza Style"],
-    "Piercings": ["Nose Ring", "Lip Piercing", "Brow Piercing", "Ear Gauge", "Multiple Ear Piercings", "Septum Ring", "Industrial Piercing"],
-    "Scars & Marks": ["Eye Scar", "Cheek Scar", "Battle Scars", "Burn Mark", "Freckles", "Beauty Mark", "Vitiligo"],
-    "Body Modifications": ["Cybernetic Eye", "Mechanical Arm", "Pointed Ears", "Vampire Fangs", "Horns", "Halo"],
-    "Makeup & Paint": ["War Paint", "Heavy Eyeliner", "Red Lipstick", "Gold Dust", "Camouflage Paint", "Clown Makeup", "Geisha Makeup"]
+    "Tattoos": ["As-Is (Skip)", "Bio-mech Tattoo", "Dragon Tattoo", "Face Tattoo", "Henna", "Minimalist Tattoo", "Sleeve Tattoo", "Tribal Tattoo", "Yakuza Style"],
+    "Piercings": ["As-Is (Skip)", "Brow Piercing", "Ear Gauge", "Industrial Piercing", "Lip Piercing", "Multiple Ear Piercings", "Nose Ring", "Septum Ring"],
+    "Scars & Marks": ["As-Is (Skip)", "Battle Scars", "Beauty Mark", "Burn Mark", "Cheek Scar", "Eye Scar", "Freckles", "Vitiligo"],
+    "Body Modifications": ["As-Is (Skip)", "Cybernetic Eye", "Halo", "Horns", "Mechanical Arm", "Pointed Ears", "Vampire Fangs"],
+    "Makeup & Paint": ["As-Is (Skip)", "Camouflage Paint", "Clown Makeup", "Geisha Makeup", "Gold Dust", "Heavy Eyeliner", "Red Lipstick", "War Paint"]
+  },
+  "skinConditionGroups": {
+    "Face Coverage": ["As-Is (Skip)", "Blood on Face", "Dried Blood on Face", "Dried Mud on Face", "Dust on Face", "Mud on Face", "Oil/Grease on Face", "Soot/Ash on Face", "Sweat on Face", "War Paint on Face"],
+    "Arms Coverage": ["As-Is (Skip)", "Blood on Arms", "Dried Blood on Arms", "Dried Mud on Arms", "Dust on Arms", "Mud on Arms", "Oil/Grease on Arms", "Soot/Ash on Arms", "Sweat on Arms", "War Paint on Arms"],
+    "Legs Coverage": ["As-Is (Skip)", "Blood on Legs", "Dried Blood on Legs", "Dried Mud on Legs", "Dust on Legs", "Mud on Legs", "Muddy Boots/Shin", "Oil/Grease on Legs", "Soot/Ash on Legs", "Sweat on Legs", "War Paint on Legs"],
+    "Whole Body Coverage": ["As-Is (Skip)", "Covered in Alien Goo", "Covered in Blood", "Covered in Dried Blood", "Covered in Dried Mud", "Covered in Dust", "Covered in Mud", "Covered in Oil/Grease", "Covered in Slime", "Covered in Soot/Ash", "Drenched in Water"]
   },
   "lists": {
-    "gender": ["Male", "Female", "Intersex", "Non-binary", "Androgynous"],
-    "age": ["Child", "Preteen", "Teen", "Young Adult", "Adult", "Mature", "Old", "Ancient"],
-    "skin": ["Albino", "Pale", "Fair", "Tan", "Brown", "Dark Brown", "Black", "Blueish", "Greenish", "Reddish", "Metallic", "Bioluminescent", "Transparent"],
-    "hair": ["Blonde", "Brunette", "Black", "Red", "White", "Grey", "Blue", "Pink", "Green", "Purple", "Rainbow", "Bald", "Fiery", "Gold", "Silver", "Copper", "Platinum"],
-    "shoes": ["Sandals", "Sneakers", "Dress Shoes", "Boots", "High Heels", "Space Boots", "Greaves", "Leg Wraps", "Magnetic Boots", "Barefoot", "Barefoot/Anklets", "Barefoot/Chained"],
-    "technology": ["Stone Age", "Bronze Age", "Iron Age", "Medieval", "Renaissance", "Industrial", "Contemporary", "Near Future", "Cyberpunk", "Far Future", "Intergalactic", "Post-Apocalyptic"],
-    "timeOfDay": ["Dawn", "Morning", "Noon", "Afternoon", "Golden Hour", "Evening", "Sunset", "Blue Hour", "Twilight", "Midnight", "Eclipse"],
-    "weather": ["Clear / Sunny", "Partly Cloudy", "Overcast", "Rain / Drizzle", "Thunderstorm", "Snowing / Blizzard", "Foggy / Misty", "Windy", "Hail", "Dust Storm"],
-    "aspectRatio": ["Original", "16:9", "4:3", "3:2", "1:1", "2:3", "3:4", "9:16"],
+    "gender": ["As-Is (Skip)", "Androgynous", "Female", "Intersex", "Male", "Non-binary"],
+    "age": ["As-Is (Skip)", "Child", "Preteen", "Teen", "Young Adult", "Adult", "Mature", "Old", "Ancient"],
+    "skin": ["As-Is (Skip)", "Albino", "Bioluminescent", "Black", "Blueish", "Brown", "Dark Brown", "Fair", "Greenish", "Metallic", "Pale", "Reddish", "Tan", "Transparent"],
+    "eyeColor": ["As-Is (Skip)", "Amber", "Black", "Blue", "Brown", "Glowing", "Gold", "Green", "Grey", "Hazel", "Heterochromia", "Red", "Silver", "Violet"],
+    "hair": ["As-Is (Skip)", "Bald", "Black", "Blonde", "Blue", "Brunette", "Copper", "Fiery", "Gold", "Green", "Grey", "Pink", "Platinum", "Purple", "Rainbow", "Red", "Silver", "White"],
+    "emotions": ["As-Is (Skip)", "Angry", "Bored", "Confident", "Crazy", "Crying", "Determined", "Disgusted", "Excited", "Fearful", "Happy", "Laughing", "Love", "Neutral", "Playful", "Sad", "Screaming", "Seductive", "Shy", "Stoic", "Surprised"],
+    "actions": ["As-Is (Skip)", "Casting Spell", "Dancing", "Diving", "Driving", "Eating", "Fighting", "Floating", "Flying", "Jumping", "Kneeling", "Pose (Dynamic)", "Pose (Relaxed)", "Reading", "Riding", "Running", "Shooting", "Sitting", "Sleeping", "Standing", "Swimming", "Walking", "Working", "Writing"],
+    "shoes": ["As-Is (Skip)", "Barefoot", "Barefoot/Anklets", "Barefoot/Chained", "Boots", "Dress Shoes", "Greaves", "High Heels", "Leg Wraps", "Magnetic Boots", "Sandals", "Sneakers", "Space Boots"],
+    "technology": ["As-Is (Skip)", "Stone Age", "Bronze Age", "Iron Age", "Medieval", "Renaissance", "Industrial", "Contemporary", "Near Future", "Cyberpunk", "Post-Apocalyptic", "Far Future", "Intergalactic"],
+    "timeOfDay": ["As-Is (Skip)", "Dawn", "Morning", "Noon", "Afternoon", "Golden Hour", "Sunset", "Evening", "Blue Hour", "Twilight", "Midnight", "Eclipse"],
+    "weather": ["As-Is (Skip)", "Clear / Sunny", "Dust Storm", "Foggy / Misty", "Hail", "Overcast", "Partly Cloudy", "Rain / Drizzle", "Snowing / Blizzard", "Thunderstorm", "Windy"],
+    "aspectRatio": ["Original", "1:1", "16:9", "2:3", "3:2", "3:4", "4:3", "9:16"],
     "artStyle": [
-        "Photorealistic", "Oil Painting", "Watercolor", "Cyberpunk", "Steampunk", "Ukiyo-e", "Noir", "Gothic", "Art Nouveau", "Surrealism", "Pop Art", "Concept Art", "Studio Ghibli Style", "Pixar Style", "Anime", "Comic Book", "Retro 80s"
+        "As-Is (Skip)", "Anime", "Art Nouveau", "Comic Book", "Concept Art", "Cyberpunk", "Gothic", "Noir", "Oil Painting", "Photorealistic", "Pixar Style", "Pop Art", "Retro 80s", "Steampunk", "Studio Ghibli Style", "Surrealism", "Ukiyo-e", "Watercolor"
     ],
     "lighting": [
-        "Natural", "Studio", "Cinematic", "Neon", "Bioluminescent", "Candlelight", "Volumetric Fog", "Rim Lighting", "Softbox", "Hard Shadows", "Rembrandt"
+        "As-Is (Skip)", "Bioluminescent", "Candlelight", "Cinematic", "Hard Shadows", "Natural", "Neon", "Rembrandt", "Rim Lighting", "Softbox", "Studio", "Volumetric Fog"
     ],
     "camera": [
-        "Wide Angle", "Telephoto", "Macro", "Fisheye", "Drone View", "Low Angle", "Dutch Angle", "Bokeh", "Over-the-shoulder"
+        "As-Is (Skip)", "Aerial View", "Bokeh", "Close-up", "Drone View", "Dutch Angle", "Fisheye", "Full Body", "Long Shot", "Low Angle", "Macro", "Medium Shot", "Over-the-shoulder", "Point of View (POV)", "Telephoto", "Wide Angle"
     ],
     "mood": [
-        "Happy", "Melancholic", "Eerie", "Heroic", "Romantic", "Chaotic", "Peaceful", "Mysterious", "Aggressive", "Whimsical", "Epic"
+        "As-Is (Skip)", "Aggressive", "Chaotic", "Eerie", "Epic", "Happy", "Heroic", "Melancholic", "Mysterious", "Peaceful", "Romantic", "Whimsical"
     ]
   }
 }

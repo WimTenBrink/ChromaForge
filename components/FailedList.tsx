@@ -1,5 +1,5 @@
 import React from 'react';
-import { RefreshCw, Trash2, AlertTriangle } from 'lucide-react';
+import { RefreshCw, Trash2, AlertTriangle, Ban } from 'lucide-react';
 import { FailedItem } from '../types';
 
 interface Props {
@@ -10,16 +10,18 @@ interface Props {
 }
 
 const FailedList: React.FC<Props> = ({ failedItems, onRetry, onRetryAll, onDelete }) => {
+  const retryableCount = failedItems.filter(f => f.retryCount < 5).length;
+
   return (
     <div className="w-72 bg-slate-900 border-l border-slate-800 flex flex-col h-full">
       <div className="p-4 border-b border-slate-800 flex justify-between items-center">
         <h2 className="font-bold text-red-400">Failed Jobs</h2>
-        {failedItems.length > 0 && (
+        {retryableCount > 0 && (
             <button 
                 onClick={onRetryAll}
                 className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded flex items-center gap-1 transition-colors"
             >
-                <RefreshCw size={12} /> Retry All
+                <RefreshCw size={12} /> Retry All ({retryableCount})
             </button>
         )}
       </div>
@@ -30,39 +32,60 @@ const FailedList: React.FC<Props> = ({ failedItems, onRetry, onRetryAll, onDelet
             No failures.
           </div>
         ) : (
-            failedItems.map(item => (
-                <div key={item.id} className="bg-slate-800/50 border border-red-900/30 rounded-lg p-3">
-                    <div className="flex gap-3 mb-2">
-                        <img 
-                           src={item.sourceImagePreview} 
-                           className="w-12 h-12 rounded object-cover border border-slate-700 opacity-50 grayscale" 
-                           alt="source" 
-                        />
-                        <div className="flex-1 min-w-0">
-                            <p className="text-[10px] text-red-300 font-mono leading-tight mb-1 break-words line-clamp-2">
+            failedItems.map(item => {
+                const canRetry = item.retryCount < 5;
+                return (
+                    <div key={item.id} className="bg-slate-800/50 border border-red-900/30 rounded-lg overflow-hidden">
+                        {/* Full Width Image Thumbnail */}
+                        <div className="w-full aspect-square bg-slate-950 relative border-b border-slate-800">
+                            <img 
+                            src={item.sourceImagePreview} 
+                            className="w-full h-full object-cover opacity-60 grayscale" 
+                            alt="source" 
+                            />
+                            <div className="absolute inset-0 flex items-center justify-center">
+                                <AlertTriangle className="text-red-500/50 w-12 h-12" />
+                            </div>
+                        </div>
+
+                        <div className="p-3">
+                            <p className="text-xs text-red-300 font-mono leading-tight mb-2 break-words line-clamp-3 bg-red-950/30 p-1.5 rounded border border-red-900/20">
                                 {item.error}
                             </p>
-                             <p className="text-[10px] text-slate-500 truncate">
+                            <p className="text-[10px] text-slate-500 truncate mb-3" title={item.optionsSummary}>
                                 {item.optionsSummary}
                             </p>
+                            
+                            <div className="flex items-center justify-between gap-2">
+                                <span className={`text-[10px] font-bold ${canRetry ? 'text-amber-500' : 'text-red-500'}`}>
+                                    Failures: {item.retryCount}/5
+                                </span>
+                                <div className="flex gap-2">
+                                    <button 
+                                        onClick={() => onRetry(item)}
+                                        disabled={!canRetry}
+                                        className={`px-3 py-1 rounded text-xs flex items-center justify-center gap-1 transition-colors ${
+                                            canRetry 
+                                            ? 'bg-slate-700 hover:bg-slate-600 text-slate-200' 
+                                            : 'bg-slate-800 text-slate-600 cursor-not-allowed'
+                                        }`}
+                                        title={canRetry ? "Retry this job" : "Retry limit reached"}
+                                    >
+                                        {canRetry ? <RefreshCw size={12} /> : <Ban size={12} />} 
+                                    </button>
+                                    <button 
+                                        onClick={() => onDelete(item.id)}
+                                        className="px-2 bg-slate-700 hover:bg-red-900/50 text-slate-400 hover:text-red-300 py-1 rounded transition-colors"
+                                        title="Dismiss"
+                                    >
+                                        <Trash2 size={12} />
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <div className="flex gap-2">
-                        <button 
-                            onClick={() => onRetry(item)}
-                            className="flex-1 bg-slate-700 hover:bg-slate-600 text-slate-200 py-1 rounded text-xs flex items-center justify-center gap-1 transition-colors"
-                        >
-                            <RefreshCw size={12} /> Retry
-                        </button>
-                        <button 
-                            onClick={() => onDelete(item.id)}
-                            className="px-2 bg-slate-700 hover:bg-red-900/50 text-slate-400 hover:text-red-300 py-1 rounded transition-colors"
-                        >
-                            <Trash2 size={12} />
-                        </button>
-                    </div>
-                </div>
-            ))
+                );
+            })
         )}
       </div>
     </div>

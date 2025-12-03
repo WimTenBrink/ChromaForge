@@ -7,6 +7,8 @@ export const DEFAULT_OPTIONS: AppOptions = {
   age: [],
   skin: [],
   hair: [],
+  eyeColor: [],
+  emotions: [],
   clothes: [],
   shoes: [],
   species: [],
@@ -16,12 +18,14 @@ export const DEFAULT_OPTIONS: AppOptions = {
   weather: [],
   aspectRatio: ['Original'],
   items: [],
+  actions: [],
   // New defaults
   artStyle: ['Photorealistic'],
   lighting: [],
   camera: [],
   mood: [],
   decorations: [],
+  skinConditions: [],
   
   replaceBackground: false,
   removeCharacters: false,
