@@ -9,6 +9,9 @@
     "Dungeons & Dragons": [
       "As-Is (Skip)", "Aasimar", "Dragonborn", "Drow", "Dwarf", "Elf", "Firbolg", "Genasi", "Gnome", "Goblin", "Half-Orc", "Halfling", "Orc", "Tabaxi", "Tiefling"
     ],
+    "Human/Animal Hybrids": [
+      "As-Is (Skip)", "Centaur", "Satyr", "Faun", "Onocentaur", "Hippocamp", "Ipotane", "Minotaur", "Sphinx", "Manticore", "Lamia", "Hecatonchires", "Karakoncolos", "Blemmyes", "Cynocephaly"
+    ],
     "Lord of the Rings": [
       "As-Is (Skip)", "High Elf", "Hobbit", "Uruk-hai", "Wood Elf"
     ],

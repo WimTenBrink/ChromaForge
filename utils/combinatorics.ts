@@ -125,8 +125,17 @@ export const buildPromptFromCombo = (combo: any): string => {
   
   if (shouldInclude(combo.mood)) style.push(`- Mood/Atmosphere: ${combo.mood}`);
 
+  // Hybrid Logic Check
+  const hybridSpecies = ["Centaur", "Satyr", "Faun", "Onocentaur", "Hippocamp", "Ipotane", "Minotaur", "Sphinx", "Manticore", "Lamia", "Hecatonchires", "Karakoncolos", "Blemmyes", "Cynocephaly"];
+  const currentSpecies = String(combo.species || "");
+  const isHybrid = hybridSpecies.some(h => currentSpecies.includes(h));
+
+  if (isHybrid) {
+      style.push("CRITICAL ANATOMY: Ensure correct proportions for the hybrid creature. The human parts must be proportional to the animal parts (avoid tiny torsos on huge bodies). For Centaurs/Onocentaurs: Human torso on animal body, NO human legs. For Satyrs/Fauns: Human upper body, goat legs.");
+  }
+
   if (shouldInclude(combo.aspectRatio) && combo.aspectRatio !== 'Original') {
-      setting.push(`- Aspect Ratio: ${combo.aspectRatio}`);
+      setting.push(`- Aspect Ratio: ${combo.aspectRatio} (Crop or extend the composition to strictly match this ratio if necessary)`);
   }
 
   let modeInstruction = "";

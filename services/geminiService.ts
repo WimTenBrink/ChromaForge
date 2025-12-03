@@ -11,8 +11,8 @@ const getErrorMessage = (err: any): string => {
   
   if (typeof err === 'object') {
       // Check for common API error patterns
-      if (typeof err.message === 'string') return err.message;
-      if (err.error && typeof err.error.message === 'string') return err.error.message; // Google API standard
+      if (err.message) return String(err.message);
+      if (err.error && err.error.message) return String(err.error.message); // Google API standard
       if (err.statusText) return `HTTP Error ${err.status || 'Unknown'}: ${err.statusText}`;
       
       // Check for prompt blocking specifically
@@ -26,10 +26,13 @@ const getErrorMessage = (err: any): string => {
       }
       
       try {
-          return JSON.stringify(err);
+          const json = JSON.stringify(err);
+          if (json !== '{}') return json;
       } catch {
-          return "Unknown Error Object (Non-serializable)";
+          // Ignore
       }
+      
+      return `Object Error (${err.constructor.name})`;
   }
   
   return String(err);

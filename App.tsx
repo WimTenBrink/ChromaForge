@@ -184,13 +184,28 @@ const App: React.FC = () => {
 
         // Generate N Jobs for this image immediately
         permutations.forEach(combo => {
+            const summaryParts = Object.entries(combo)
+                .filter(([key, value]) => {
+                    if (key === 'combinedGroups' || key === 'optionsSnapshot' || key === 'removeCharacters' || key === 'replaceBackground') return false;
+                    if (!value) return false;
+                    const valStr = String(value);
+                    return !valStr.startsWith("As-Is") && valStr !== "Original" && valStr !== "default" && valStr !== "none";
+                })
+                .map(([key, value]) => {
+                    const label = key.replace(/([A-Z])/g, " $1").replace(/^./, str => str.toUpperCase());
+                    return `${label}: ${value}`;
+                });
+            
+            if (combo.removeCharacters) summaryParts.unshift("NO CHARACTERS");
+            if (combo.replaceBackground) summaryParts.unshift("REPLACE BG");
+
             newJobs.push({
                 id: crypto.randomUUID(),
                 sourceImageId: sourceId,
                 originalFilename: file.name,
                 generatedTitle: "Pending...",
                 prompt: buildPromptFromCombo(combo),
-                optionsSummary: Object.values(combo).filter(Boolean).join(', '),
+                optionsSummary: summaryParts.join(', '),
                 aspectRatio: combo.aspectRatio,
                 optionsSnapshot: optionsSnapshot,
                 status: 'QUEUED',
@@ -232,6 +247,10 @@ const App: React.FC = () => {
 
   const handleRemoveJob = (id: string) => {
     setJobQueue(prev => prev.filter(j => j.id !== id));
+  };
+  
+  const handleRemoveJobGroup = (sourceImageId: string) => {
+      setJobQueue(prev => prev.filter(j => j.sourceImageId !== sourceImageId));
   };
 
   const handleMoveJob = (id: string, direction: 'up' | 'down' | 'top' | 'bottom') => {
@@ -591,6 +610,7 @@ const App: React.FC = () => {
             sourceRegistry={sourceRegistry}
             onAddFiles={handleAddFiles}
             onRemoveJob={handleRemoveJob}
+            onRemoveJobGroup={handleRemoveJobGroup}
             onMoveJob={handleMoveJob}
             onZoom={handleZoom}
         />
