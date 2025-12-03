@@ -73,7 +73,7 @@ You can now save and load your configurations.
 #### **Character & Body**
 *   **Eye Color**: Dedicated options for iris coloration.
 *   **Emotions**: Force specific expressions (e.g., "Screaming", "Seductive", "Stoic").
-*   **Actions**: Define dynamic poses like "Fighting", "Swimming", or "Casting Spell".
+*   **Actions**: Define dynamic poses like "Fighting", or "Casting Spell".
 *   **Skin Effects**: A specialized tab for surface textures.
     *   **Zones**: Apply effects to Face, Arms, Legs, or Whole Body.
     *   **Options**: Mud, Dust, Blood, Oil, Paint, Soot, Sweat, etc.
@@ -121,11 +121,23 @@ const ManualDialog: React.FC<Props> = ({ isOpen, onClose }) => {
   useEffect(() => {
     // Parse markdown to HTML
     if (isOpen) {
-        // Configure marked options if needed, defaults are usually fine
-        const parsed = marked.parse(MANUAL_CONTENT) as string;
-        setHtmlContent(parsed);
+        try {
+            // Configure marked options if needed, defaults are usually fine
+            const parsed = marked.parse(MANUAL_CONTENT);
+            // Handle both sync (string) and async (Promise) returns just in case
+            if (parsed instanceof Promise) {
+                parsed.then(res => setHtmlContent(res));
+            } else {
+                setHtmlContent(parsed as string);
+            }
+        } catch (e) {
+            console.error("Failed to parse manual content", e);
+            setHtmlContent("<p>Error loading manual.</p>");
+        }
     }
   }, [isOpen]);
+
+  if (!isOpen) return null;
 
   const handleDownload = () => {
     const blob = new Blob([MANUAL_CONTENT], { type: 'text/markdown' });

@@ -31,12 +31,12 @@ const ImageDetailDialog: React.FC<Props> = ({ image, onClose, onNext, onPrev, ha
   // Helper to normalize data props
   const getTitle = () => {
       if (!image) return "";
-      return (image as GeneratedImage).originalFilename || image.title || "Image Viewer";
+      return (image as GeneratedImage).originalFilename || (image as ViewableImage).title || "Image Viewer";
   };
   
   const getMetadata = () => {
       if (!image) return "";
-      return (image as GeneratedImage).optionsUsed || image.metadata || "";
+      return (image as GeneratedImage).optionsUsed || (image as ViewableImage).metadata || "";
   };
 
   // Reset state when image opens
