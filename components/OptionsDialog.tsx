@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef } from 'react';
-import { X, User, Zap, Map as MapIcon, Clock, Sparkles, Monitor, Package, Sliders, Palette, Lightbulb, Camera, Smile, Cloud, Brush, Calculator, Ban, Shirt, CheckSquare, Square, Layers, Activity, Droplets, Download, Upload } from 'lucide-react';
+import { X, User, Zap, Map as MapIcon, Clock, Sparkles, Monitor, Package, Sliders, Palette, Lightbulb, Camera, Smile, Cloud, Brush, Calculator, Ban, Shirt, CheckSquare, Square, Layers, Activity, Droplets, Download, Upload, Check } from 'lucide-react';
 import { AppOptions, GlobalConfig } from '../types';
 import { DEFAULT_OPTIONS } from '../constants';
 
@@ -14,6 +14,10 @@ interface Props {
 const OptionsDialog: React.FC<Props> = ({ isOpen, onClose, options, setOptions, config }) => {
   const [activeTab, setActiveTab] = useState<'CHAR' | 'ATTIRE' | 'SPECIES' | 'ITEMS' | 'DECOR' | 'SKIN_FX' | 'TECH' | 'ENV' | 'TIME' | 'WEATHER' | 'RATIO' | 'STYLE' | 'LIGHTING' | 'CAMERA' | 'MOOD' | 'ACTION' | 'CUSTOM'>('CHAR');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // State for Save Preset UI
+  const [isNamingPreset, setIsNamingPreset] = useState(false);
+  const [presetName, setPresetName] = useState('ChromaForge');
 
   const permutationCount = useMemo(() => {
     return (Object.keys(options) as Array<keyof AppOptions>).reduce((acc, key) => {
@@ -77,14 +81,16 @@ const OptionsDialog: React.FC<Props> = ({ isOpen, onClose, options, setOptions, 
       });
   };
 
-  const handleSaveConfig = () => {
-    const filenameInput = prompt("Enter a name for your configuration preset:", "chromaforge_config");
-    if (!filenameInput) return;
+  const handleSaveClick = () => {
+    setPresetName('ChromaForge');
+    setIsNamingPreset(true);
+  };
 
-    let filename = filenameInput.trim();
-    if (!filename.toLowerCase().endsWith('.kcf')) {
-        filename += '.kcf';
-    }
+  const performSave = () => {
+    let filename = presetName.trim() || 'ChromaForge';
+    // Ensure extension
+    filename = filename.replace(/\.kcf$/i, ''); // Remove if user typed it
+    filename += '.kcf';
 
     const data = JSON.stringify(options, null, 2);
     const blob = new Blob([data], { type: 'application/json' });
@@ -96,6 +102,8 @@ const OptionsDialog: React.FC<Props> = ({ isOpen, onClose, options, setOptions, 
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+    
+    setIsNamingPreset(false);
   };
 
   const handleLoadConfig = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -532,32 +540,69 @@ const OptionsDialog: React.FC<Props> = ({ isOpen, onClose, options, setOptions, 
         
         {/* Footer */}
         <div className="p-4 border-t border-slate-800 bg-slate-950 flex justify-between items-center">
-            {/* Left Actions (Files) */}
-            <div className="flex items-center gap-2">
-                <input 
-                    type="file" 
-                    ref={fileInputRef} 
-                    className="hidden" 
-                    accept=".kcf,.json" 
-                    onChange={handleLoadConfig}
-                />
-                <button 
-                    onClick={handleSaveConfig}
-                    className="flex items-center gap-2 px-3 py-2 text-slate-400 hover:text-emerald-400 bg-slate-900 border border-slate-700 hover:border-emerald-500/50 rounded-lg text-sm transition-all"
-                    title="Save current configuration to .kcf file"
-                >
-                    <Download size={14} /> 
-                    <span className="hidden sm:inline">Save Preset</span>
-                </button>
-                <button 
-                    onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center gap-2 px-3 py-2 text-slate-400 hover:text-indigo-400 bg-slate-900 border border-slate-700 hover:border-indigo-500/50 rounded-lg text-sm transition-all"
-                    title="Load configuration from .kcf file"
-                >
-                    <Upload size={14} /> 
-                    <span className="hidden sm:inline">Load Preset</span>
-                </button>
-            </div>
+            {/* Hidden File Input (Always Present) */}
+            <input 
+                type="file" 
+                ref={fileInputRef} 
+                className="hidden" 
+                accept=".kcf,.json" 
+                onChange={handleLoadConfig}
+            />
+
+            {/* Left Actions (Save/Load) */}
+            {isNamingPreset ? (
+                <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2 duration-200">
+                    <span className="text-sm text-slate-400 font-medium">Filename:</span>
+                    <div className="relative">
+                        <input 
+                            type="text" 
+                            value={presetName}
+                            onChange={(e) => setPresetName(e.target.value)}
+                            className="bg-slate-800 border border-slate-600 rounded px-3 py-1.5 text-sm text-slate-200 focus:border-emerald-500 outline-none w-48 font-mono"
+                            autoFocus
+                            placeholder="ChromaForge"
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') performSave();
+                                if (e.key === 'Escape') setIsNamingPreset(false);
+                            }}
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500 pointer-events-none">.kcf</span>
+                    </div>
+                    <button 
+                        onClick={performSave} 
+                        className="p-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-colors shadow-lg shadow-emerald-900/20" 
+                        title="Confirm Save"
+                    >
+                        <Check size={16} />
+                    </button>
+                    <button 
+                        onClick={() => setIsNamingPreset(false)} 
+                        className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-lg transition-colors border border-slate-700" 
+                        title="Cancel"
+                    >
+                        <X size={16} />
+                    </button>
+                </div>
+            ) : (
+                <div className="flex items-center gap-2">
+                    <button 
+                        onClick={handleSaveClick}
+                        className="flex items-center gap-2 px-3 py-2 text-slate-400 hover:text-emerald-400 bg-slate-900 border border-slate-700 hover:border-emerald-500/50 rounded-lg text-sm transition-all"
+                        title="Save current configuration to .kcf file"
+                    >
+                        <Download size={14} /> 
+                        <span className="hidden sm:inline">Save Preset</span>
+                    </button>
+                    <button 
+                        onClick={() => fileInputRef.current?.click()}
+                        className="flex items-center gap-2 px-3 py-2 text-slate-400 hover:text-indigo-400 bg-slate-900 border border-slate-700 hover:border-indigo-500/50 rounded-lg text-sm transition-all"
+                        title="Load configuration from .kcf file"
+                    >
+                        <Upload size={14} /> 
+                        <span className="hidden sm:inline">Load Preset</span>
+                    </button>
+                </div>
+            )}
 
             {/* Right Actions (Save/Reset) */}
             <div className="flex items-center gap-3">
