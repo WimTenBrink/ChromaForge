@@ -1,8 +1,5 @@
-
-
-
-import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, Settings, Terminal, Shield, ShieldCheck, Trash2, Loader2, Activity, Book, Upload, Clock, Save, FolderOpen, Plus, Search, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { Play, Pause, Settings, Terminal, Shield, ShieldCheck, Trash2, Loader2, Activity, Book, Upload, Save, FolderOpen, Plus, Search, RefreshCw, ArrowUpCircle, ArrowDownCircle, ArrowUp, ArrowDown, Calendar, Type, LayoutList } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import OptionsDialog from './components/OptionsDialog';
 import ConsoleDialog from './components/ConsoleDialog';
@@ -11,7 +8,7 @@ import ManualDialog from './components/ManualDialog';
 import { AppOptions, Job, GeneratedImage, FailedItem, ImageAnalysis, GlobalConfig, SourceImage, ValidationJob } from './types';
 import { DEFAULT_OPTIONS, MAX_CONCURRENT_JOBS } from './constants';
 import { generatePermutations, buildPromptFromCombo } from './utils/combinatorics';
-import { processImage, analyzeImage, validateFileName } from './services/geminiService';
+import { processImage, validateFileName } from './services/geminiService';
 import { log } from './services/logger';
 import { saveState, loadState } from './services/db';
 
@@ -28,8 +25,10 @@ const App: React.FC = () => {
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
   const [failedItems, setFailedItems] = useState<FailedItem[]>([]);
   
-  // Filtering
+  // Filtering & Sorting
   const [selectedSourceIds, setSelectedSourceIds] = useState<Set<string>>(new Set());
+  const [sortBy, setSortBy] = useState<'TIMESTAMP' | 'FILENAME' | 'QUEUE'>('TIMESTAMP');
+  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC');
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
@@ -47,6 +46,7 @@ const App: React.FC = () => {
 
   // File Input Ref for Import
   const queueFileInputRef = useRef<HTMLInputElement>(null);
+  const galleryScrollRef = useRef<HTMLDivElement>(null);
 
   // Statistics & Timing
   const [jobDurations, setJobDurations] = useState<number[]>([]);
@@ -58,24 +58,6 @@ const App: React.FC = () => {
   const totalVariationsScheduled = jobQueue.length + generatedImages.length + failedItems.length;
   const totalProcessed = generatedImages.length + failedItems.length;
   const progressPercentage = totalVariationsScheduled === 0 ? 0 : Math.round((totalProcessed / totalVariationsScheduled) * 100);
-
-  const averageDurationMs = jobDurations.length > 0 
-      ? jobDurations.reduce((a, b) => a + b, 0) / jobDurations.length 
-      : 15000; // Default estimate 15s
-  const estimatedRemainingMs = activeJobs.length * averageDurationMs;
-
-  const formatTime = (ms: number) => {
-      if (activeJobs.length === 0) return "00:00";
-      const seconds = Math.floor((ms / 1000) % 60);
-      const minutes = Math.floor((ms / (1000 * 60)) % 60);
-      const hours = Math.floor((ms / (1000 * 60 * 60)));
-      
-      const m = minutes.toString().padStart(2, '0');
-      const s = seconds.toString().padStart(2, '0');
-      
-      if (hours > 0) return `${hours}:${m}:${s}`;
-      return `${m}:${s}`;
-  };
 
   // --- Persistence ---
 
@@ -682,10 +664,48 @@ const App: React.FC = () => {
     }
   };
 
-  // --- Filtering Logic for Main Gallery ---
-  const displayImages = selectedSourceIds.size > 0 
+  const scrollToTop = () => {
+    galleryScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const scrollToBottom = () => {
+    galleryScrollRef.current?.scrollTo({ top: galleryScrollRef.current.scrollHeight, behavior: 'smooth' });
+  };
+
+  // --- Filtering & Sorting Logic for Main Gallery ---
+  const displayImages = useMemo(() => {
+    // 1. Filter
+    let filtered = selectedSourceIds.size > 0 
       ? generatedImages.filter(img => selectedSourceIds.has(img.sourceImageId))
-      : generatedImages;
+      : [...generatedImages];
+
+    // 2. Sort
+    filtered.sort((a, b) => {
+        let comparison = 0;
+        
+        switch (sortBy) {
+            case 'FILENAME':
+                comparison = a.originalFilename.localeCompare(b.originalFilename);
+                break;
+            case 'QUEUE':
+                // Sort by Source Image Name (Grouping)
+                const sourceA = sourceRegistry.get(a.sourceImageId);
+                const sourceB = sourceRegistry.get(b.sourceImageId);
+                const nameA = sourceA?.name || "";
+                const nameB = sourceB?.name || "";
+                comparison = nameA.localeCompare(nameB);
+                break;
+            case 'TIMESTAMP':
+            default:
+                comparison = a.timestamp - b.timestamp;
+                break;
+        }
+
+        return sortOrder === 'ASC' ? comparison : -comparison;
+    });
+
+    return filtered;
+  }, [generatedImages, selectedSourceIds, sortBy, sortOrder, sourceRegistry]);
 
   return (
     <div 
@@ -868,30 +888,77 @@ const App: React.FC = () => {
         </div>
 
         {/* Right Gallery: 80vw */}
-        <div className="w-[80vw] bg-slate-950 flex flex-col min-w-0 h-full">
-           {/* Info Bar */}
-           <div className="h-10 border-b border-slate-800 bg-slate-900 flex items-center px-4 justify-between text-xs text-slate-500 shrink-0">
-               <span>
-                  Showing {displayImages.length} results {selectedSourceIds.size > 0 ? `(Filtered by ${selectedSourceIds.size} sources)` : ''}
-               </span>
-               <div className="flex gap-4">
+        <div className="w-[80vw] bg-slate-950 flex flex-col min-w-0 h-full relative">
+           {/* Info Bar with Sort Controls */}
+           <div className="h-12 border-b border-slate-800 bg-slate-900 flex items-center px-4 justify-between text-xs text-slate-500 shrink-0 z-10">
+               
+               {/* Left: Counts */}
+               <div className="flex items-center gap-2">
+                   <span className="font-bold text-slate-400">
+                      Results: {displayImages.length} 
+                   </span>
+                   {selectedSourceIds.size > 0 && (
+                       <span className="bg-emerald-900/30 text-emerald-400 px-2 py-0.5 rounded border border-emerald-900/50">
+                           Filtered by Source
+                       </span>
+                   )}
+               </div>
+
+               {/* Right: Controls */}
+               <div className="flex items-center gap-4">
+                   {/* Sort Controls */}
+                   <div className="flex items-center bg-slate-800 rounded p-1 border border-slate-700">
+                        <span className="px-2 text-[10px] uppercase font-bold text-slate-500">Sort:</span>
+                        
+                        <div className="flex items-center gap-0.5 mr-2">
+                            <button 
+                                onClick={() => setSortBy('QUEUE')}
+                                className={`p-1.5 rounded flex items-center gap-1 transition-colors ${sortBy === 'QUEUE' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-200'}`}
+                                title="Sort by Queue (Source)"
+                            >
+                                <LayoutList size={14} /> <span className="hidden sm:inline">Queue</span>
+                            </button>
+                            <button 
+                                onClick={() => setSortBy('FILENAME')}
+                                className={`p-1.5 rounded flex items-center gap-1 transition-colors ${sortBy === 'FILENAME' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-200'}`}
+                                title="Sort by File Name"
+                            >
+                                <Type size={14} /> <span className="hidden sm:inline">Name</span>
+                            </button>
+                            <button 
+                                onClick={() => setSortBy('TIMESTAMP')}
+                                className={`p-1.5 rounded flex items-center gap-1 transition-colors ${sortBy === 'TIMESTAMP' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-200'}`}
+                                title="Sort by Time"
+                            >
+                                <Calendar size={14} /> <span className="hidden sm:inline">Time</span>
+                            </button>
+                        </div>
+
+                        <div className="w-px h-4 bg-slate-700 mx-1"/>
+
+                        <button 
+                            onClick={() => setSortOrder(prev => prev === 'ASC' ? 'DESC' : 'ASC')}
+                            className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors"
+                            title={sortOrder === 'ASC' ? "Ascending" : "Descending"}
+                        >
+                            {sortOrder === 'ASC' ? <ArrowUp size={14} /> : <ArrowDown size={14} />}
+                        </button>
+                   </div>
+
                    {generatedImages.length > 0 && (
                        <button 
                         onClick={handleClearGallery} 
-                        className="flex items-center gap-2 px-3 py-0.5 bg-slate-800 hover:bg-red-900/30 text-slate-400 hover:text-red-400 border border-transparent hover:border-red-900/50 rounded transition-all"
+                        className="flex items-center gap-2 px-3 py-1 bg-slate-800 hover:bg-red-900/30 text-slate-400 hover:text-red-400 border border-transparent hover:border-red-900/50 rounded transition-all ml-2"
                         type="button"
                        >
-                           <Trash2 size={12} /> Delete All Results
+                           <Trash2 size={12} /> Delete All
                        </button>
                    )}
-                   <span>
-                      Total Generated: {generatedImages.length}
-                   </span>
                </div>
            </div>
            
            {/* Grid */}
-           <div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-slate-950">
+           <div ref={galleryScrollRef} className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-slate-950 relative scroll-smooth">
                 {displayImages.length === 0 ? (
                     <div className="h-full flex flex-col items-center justify-center text-slate-700">
                         <div className="w-24 h-24 rounded-full border-4 border-slate-800 flex items-center justify-center mb-4">
@@ -955,6 +1022,24 @@ const App: React.FC = () => {
                         ))}
                     </div>
                 )}
+           </div>
+
+           {/* Floating Scroll Buttons */}
+           <div className="absolute bottom-6 right-8 flex flex-col gap-2 z-30">
+               <button 
+                  onClick={scrollToTop} 
+                  className="p-3 bg-slate-800/80 hover:bg-emerald-600 text-white rounded-full shadow-lg border border-slate-700 backdrop-blur transition-all"
+                  title="Scroll to Top"
+               >
+                   <ArrowUpCircle size={24} />
+               </button>
+               <button 
+                  onClick={scrollToBottom} 
+                  className="p-3 bg-slate-800/80 hover:bg-emerald-600 text-white rounded-full shadow-lg border border-slate-700 backdrop-blur transition-all"
+                  title="Scroll to Bottom"
+               >
+                   <ArrowDownCircle size={24} />
+               </button>
            </div>
         </div>
       </main>

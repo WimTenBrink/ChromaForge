@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { X, Download, Book, FileText } from 'lucide-react';
 import { marked } from 'marked';
@@ -9,106 +10,110 @@ interface Props {
 
 const MANUAL_CONTENT = `
 # ChromaForge User Manual
-**Version 2.0 | Katje B.V.**
+**Version 2.5 | Katje B.V.**
 
 ---
 
 ## 1. Introduction
 
-**ChromaForge** is a professional AI-powered tool for transforming line art into photorealistic 4K masterpieces. It uses a **Combinatorial Generation Engine** to create distinct variations of your artwork based on structured logical inputs.
-
-### Core Architecture: "One Job Per Configuration"
-Unlike standard image generators, ChromaForge treats every single configuration as a unique **Job**.
-*   If you select 1 Gender, 2 Hair Colors, and 3 Environments, the system calculates $1 \\times 2 \\times 3 = 6$ distinct permutations.
-*   When you drag an image into the app, **6 separate jobs** are immediately created in the queue.
-*   **Snapshotting**: Each job "remembers" the exact settings active at the moment you added the file. Changing global settings afterwards *will not* change the jobs already in the queue.
+**ChromaForge** is a professional AI-powered tool designed to colorize and render line art into photorealistic 4K masterpieces. It utilizes a **Combinatorial Generation Engine** to create multiple variations of an image based on logical configuration attributes.
 
 ---
 
-## 2. Workflow & Interface
+## 2. The User Interface
 
-### 2.1 Global Drop Zone
-The entire application window is a drop zone.
-*   **Action**: Drag one or multiple image files (PNG, JPG, WEBP) anywhere onto the screen.
-*   **Result**: The system immediately calculates the permutations based on your *current* configuration and adds them to the Input Queue.
+The application is divided into two main sections:
+1.  **Sidebar (20vw)**: The control center for all files and queues.
+2.  **Gallery (80vw)**: The display area for generated results.
 
-### 2.2 The Input Queue (Left Sidebar)
-This list represents your production line.
-*   **Granular Items**: Each item is a specific variation (e.g., *"Elf, Red Hair, Sunset"*), not just the source file.
-*   **Thumbnails**: Full-width thumbnails allow you to preview the source line art. **Click to Zoom** deeply into the source image.
-*   **Reordering**: Use the **Up/Down** and **Top/Bottom** buttons on each card to prioritize specific variations.
-*   **Processing**: The system processes the queue from **Top to Bottom**, handling **3 jobs concurrently**.
+### 2.1 The Sidebar Queues
+The sidebar is organized into tabs using icon navigation at the top:
 
-### 2.3 The Gallery (Center)
-*   **Viewing**: Click any image to open the **Detail View**. Use Arrow Keys to navigate.
-*   **Zooming**: Scroll to zoom in/out; drag to pan.
-*   **Management**:
-    *   **Delete**: Each image has a trash icon to remove it from the session.
-    *   **Clear Gallery**: Removes all generated results (does not affect the queue).
-*   **Auto-Download**: Generated images are automatically downloaded to your device with filenames describing their specific configuration.
+*   **Uploads (Image Icon)**:
+    *   Contains the original source images you dragged into the app.
+    *   **Filtering**: Click the checkbox on an image to filter the main gallery. Only results derived from that specific source will be shown.
+    *   **Status**: A green glowing border indicates that all jobs associated with this source have finished processing.
+*   **Check / Validating (Scan Icon)**:
+    *   When an image is uploaded, it enters this queue first.
+    *   The AI analyzes the visual content to generate a descriptive, safe filename automatically.
+    *   Once named, it moves to the Jobs/Queue.
+*   **Jobs (Spinner Icon)**:
+    *   Shows jobs currently being processed by the AI.
+    *   Maximum concurrent jobs: **3**.
+*   **Queue (Layers Icon)**:
+    *   Jobs waiting for their turn.
+    *   Processed from top to bottom.
+*   **Failed (Refresh Icon)**:
+    *   Jobs that failed due to network errors or timeouts.
+    *   **Retry Limit**: 3 attempts allowed.
+    *   **Action**: Use the **Retry All** button to re-queue them.
+*   **Ban / Prohibited (Ban Icon)**:
+    *   Jobs rejected by the AI safety filters (Prohibited Content).
+    *   **Retry Limit**: 1 attempt allowed (in case of false positive).
+    *   **Action**: Use the **Retry All** button.
+*   **Dead / Blocked (X Icon)**:
+    *   Jobs that have exceeded their retry limits. They cannot be processed.
 
-### 2.4 Failed Jobs (Right Sidebar)
-*   **Retry Limit**: A job can be retried up to **5 times**. After 5 failures, it is permanently locked to prevent API loops.
-*   **Manual Retry**: Failures are not retried automatically. You must click the **Retry** button (Refresh icon).
-*   **Zoom**: You can zoom in on failed thumbnails to inspect if the source image quality caused the issue.
-
-### 2.5 Dashboard Header
-*   **Stats**: Shows Pending vs. Completed jobs.
-*   **ETR (Estimated Time Remaining)**: Calculates based on the average duration of recent jobs.
-*   **API Key**: Status indicator for your Google Gemini API connection.
+### 2.2 The Main Gallery
+*   **Layout**: Images are displayed in a grid, constrained to 400px max dimension.
+*   **Sorting**: Use the controls in the top bar to sort by:
+    *   **Queue**: Groups images by their source file.
+    *   **Name**: Sorts alphabetically by filename.
+    *   **Time**: Sorts by generation timestamp.
+    *   **Order**: Toggle Ascending/Descending.
+*   **Navigation**:
+    *   Floating buttons in the bottom-right allow instant scrolling to **Top** or **Bottom**.
+*   **Image Actions**:
+    *   **Zoom**: Click an image to view in full resolution.
+    *   **Repeat**: Hover over an image and click the **Refresh** icon to duplicate that specific job configuration and run it again.
+    *   **Delete**: Remove specific results.
 
 ---
 
-## 3. Configuration & Options
+## 3. Workflow
+
+### 3.1 Importing Images
+*   **Drop Zone**: Drag and drop one or multiple image files anywhere on the screen.
+*   **Snapshotting**: The moment you drop a file, the current Configuration is "frozen" into that job. Changing settings afterwards will not affect files already in the queue.
+
+### 3.2 Combinatorial Logic
+ChromaForge generates a Cartesian product of your settings.
+*   *Example*: Selecting "Elf" (Species) + "Red", "Blue" (Hair) + "Forest", "City" (Environment).
+*   *Result*: $1 \\times 2 \\times 2 = 4$ distinct jobs per uploaded image.
+
+### 3.3 Safety & Retry System
+*   **Standard Failure**: Network issues or server overloads. Retriable 3 times.
+*   **Safety Violation**: If the AI detects prohibited content (e.g., specific nudity not covered by artistic exemptions), it flags the job. You get 1 retry chance.
+*   **Blocked**: After limits are reached, the job is moved to the "Dead" queue to prevent infinite loops.
+
+---
+
+## 4. Configuration
 
 Click **Configure Generation** to access the logic engine.
 
-### 3.1 Presets (.kcf)
-You can now save and load your configurations.
-*   **Save Preset**: Exports your current settings to a \`.kcf\` (JSON) file. You will be prompted for a name.
-*   **Load Preset**: Imports settings from a file, restoring your complex logic setups.
+### 4.1 Visual Indicators
+*   **Emerald Pill**: Single selection active.
+*   **Blue Pill**: Multiple items selected in a category.
+*   **Indigo Pill**: "Combine Selections" is active (merges all selected items into one prompt instead of creating variations).
 
-### 3.2 Feature Categories
+### 4.2 Special Categories
+*   **Bondage**: A dedicated tab for restraint and capture scenarios.
+    *   *Note*: Selecting these options automatically triggers "Implied Nudity" safety overrides in the prompt engineering to prevent the AI from generating excessive clothing that would obscure the requested concept, while maintaining TOS compliance.
+*   **Landscape Mode (Custom Tab)**:
+    *   **Remove Characters**: Instructs the AI to generate a scene with NO people.
+    *   **Replace Background**: Discards the original background lines entirely and generates a new environment.
 
-#### **Character & Body**
-*   **Eye Color**: Dedicated options for iris coloration.
-*   **Emotions**: Force specific expressions (e.g., "Screaming", "Seductive", "Stoic").
-*   **Actions**: Define dynamic poses like "Fighting", or "Casting Spell".
-*   **Skin Effects**: A specialized tab for surface textures.
-    *   **Zones**: Apply effects to Face, Arms, Legs, or Whole Body.
-    *   **Options**: Mud, Dust, Blood, Oil, Paint, Soot, Sweat, etc.
-
-#### **Camera & Composition**
-*   **Full Body**: A specific instruction to ensure the AI frames the character from head to toe.
-*   **Angles**: Aerial, Dutch Angle, Low Angle, etc.
-
-#### **World Building**
-*   **Technology**: Now includes Fantasy levels (High Fantasy, Magitech, Steampunk, D&D Tech Levels).
-*   **As-Is (Skip)**: Every category now includes an "As-Is" option. This tells the AI to ignore that specific category and use its own judgment based on the visual input.
-
-### 3.3 Advanced Modes (Custom Tab)
-*   **Landscape Mode (Remove Characters)**:
-    *   Instructs the AI to erase people from the scene and in-fill the background.
-    *   Disables character-specific tabs (Gender, Attire, etc.) to prevent logical conflicts.
-*   **Replace Background**:
-    *   Performs subject segmentation to discard the original line art background and generate a new one based on "Environment" settings.
+### 4.3 Presets
+*   Save your complex configurations to \`.kcf\` files to reload them later.
 
 ---
 
-## 4. Tips for Success
+## 5. Technical Details
 
-1.  **Check Settings BEFORE Dragging**: Because jobs snapshot settings immediately, ensure your configuration is correct before dragging in 10 files.
-2.  **Use the Permutation Counter**: The calculator in the config header updates in real-time. If it says "120 Combinations", dragging **one** image will add **120 jobs** to the queue.
-3.  **Facial Details**: The system is prompted to strictly preserve facial features, but "Close-up" camera angles often yield the highest fidelity faces.
-4.  **Zooming**: Use the zoom feature on sidebar items to check if your source line art has enough contrast. Faint pencil lines can sometimes be misinterpreted as "fog" or "texture".
-
----
-
-## 5. Technical Notes
-
-*   **Markdown Analysis**: Automatic markdown report generation has been disabled to streamline the batch workflow.
-*   **Privacy**: Images are processed in memory and sent directly to Google Cloud. No images are stored on intermediate servers.
-*   **Session Storage**: The Input Queue persists via your browser's IndexedDB, but the Gallery is session-based. Download your results!
+*   **Validation**: Uses \`gemini-2.5-flash\` for rapid image analysis and naming.
+*   **Generation**: Uses \`gemini-3-pro-image-preview\` for high-fidelity 4K output.
+*   **Persistence**: The Queue and Uploads are saved to your browser's local database (IndexedDB). They survive page reloads. The Gallery results are session-based and should be downloaded (auto-download is active).
 
 ---
 
@@ -195,7 +200,7 @@ const ManualDialog: React.FC<Props> = ({ isOpen, onClose }) => {
                 {/* Footer of document */}
                 <div className="mt-16 pt-8 border-t border-slate-800 flex flex-col items-center text-slate-500 text-sm">
                     <p>© {new Date().getFullYear()} Katje B.V. All rights reserved.</p>
-                    <p className="mt-2">ChromaForge v2.0</p>
+                    <p className="mt-2">ChromaForge v2.5</p>
                 </div>
             </div>
         </div>

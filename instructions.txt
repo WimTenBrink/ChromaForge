@@ -1,0 +1,103 @@
+# ChromaForge Reconstruction Instructions
+
+## Project Overview
+Create a single-page React application named "ChromaForge".
+The purpose of the app is to batch process line-art images into photorealistic colored artworks using the Google GenAI SDK (Gemini).
+The app uses a combinatorial engine to generate multiple variations of a single uploaded image based on selected configuration options.
+
+## Tech Stack
+- React 18+ (Create Root)
+- Tailwind CSS (via CDN)
+- Lucide React (Icons)
+- @google/genai SDK (v1.30.0+)
+- IndexedDB (for state persistence)
+
+## Layout & UI Structure
+The app is a split-screen design:
+1. **Sidebar (Left, 20vw)**: Contains all file management and queues.
+2. **Gallery (Right, 80vw)**: Displays the generated results.
+3. **Global Drop Zone**: The entire window accepts file drops.
+
+## Functional Requirements
+
+### 1. Sidebar Queues
+Implement a tabbed sidebar with the following specific queues. Each queue must display a count of items.
+
+*   **Uploads**:
+    *   Stores the original source images.
+    *   Displays a thumbnail and filename.
+    *   **Feature**: A checkbox on each image to filter the Gallery (show only results from this source).
+    *   **Feature**: "Deselect All" button in header if filters are active.
+    *   **Visual**: Green glowing border (4px) if all jobs for this source are finished.
+*   **Check (Validating)**:
+    *   Temporary queue for newly uploaded images.
+    *   **Process**: Use `gemini-2.5-flash` to analyze the image and generate a short, descriptive filename (max 5 words, alphanumeric).
+    *   Once named, the image moves to the Job Queue.
+*   **Jobs**:
+    *   Displays currently running jobs.
+    *   **Concurrency**: Maximum 3 jobs running at once.
+*   **Queue**:
+    *   Displays jobs waiting to be processed.
+*   **Failed**:
+    *   Jobs that failed due to network/server errors.
+    *   **Retry Logic**: Allow up to 3 retries.
+    *   **UI**: "Retry All" button.
+*   **Ban (Prohibited)**:
+    *   Jobs blocked by safety settings.
+    *   **Retry Logic**: Allow 1 retry (for false positives).
+    *   **UI**: "Retry All" button.
+*   **Dead (Blocked)**:
+    *   Jobs that exceeded retry limits. No further action allowed.
+
+### 2. Gallery Features
+*   **Display**: Grid layout. Images must be constrained to max 400px width/height.
+*   **Sorting**: Header bar with sort controls:
+    *   Sort by Queue (Source Image Name).
+    *   Sort by File Name.
+    *   Sort by Timestamp.
+    *   Ascending/Descending toggle.
+*   **Navigation**: Floating "Scroll to Top" and "Scroll to Bottom" buttons.
+*   **Item Actions**:
+    *   **Zoom**: Open detailed modal.
+    *   **Repeat**: Button to re-queue the exact same job configuration.
+    *   **Delete**: Remove result.
+
+### 3. Configuration & Combinatorics
+Create a modal dialog for detailed configuration.
+*   **Structure**: Vertical tabs (Character, Attire, Bondage, D&D, Species, Items, Environment, etc.).
+*   **Logic**:
+    *   **Permutations**: If user selects [Red, Blue] for Hair and [Forest, City] for Environment, generate 4 distinct jobs (Red+Forest, Red+City, Blue+Forest, Blue+City).
+    *   **Combine Mode**: Checkbox to merge selections into one prompt (e.g., "Red and Blue Hair") instead of permutations.
+*   **Visuals**:
+    *   Single selection: Emerald Green pill.
+    *   Multiple selections: Blue pill.
+    *   Combined selections: Indigo pill.
+*   **Bondage Tab**:
+    *   Specific sub-groups for restraints.
+    *   **Logic**: If selected, prompt engineering must explicitly handle "Implied Nudity" safety overrides to ensure the model follows instructions without triggering unnecessary blocks.
+
+### 4. Job Execution Engine
+*   **Snapshotting**: When a file is dropped, the current configuration is "frozen" into the generated jobs. Changing settings later does not affect queued jobs.
+*   **Model**: Use `gemini-3-pro-image-preview` for generation.
+*   **Prompt Engineering**: Construct a detailed system prompt including:
+    *   Visual Style (Photorealistic, 8K).
+    *   Character details (Gender, Age, Skin, etc.).
+    *   Safety instructions (Handling nudity/bondage requests artistically).
+    *   Landscape Mode (Remove characters if requested).
+
+### 5. Persistence
+*   Use `IndexedDB` to save the `JobQueue` and `SourceRegistry` (including base64 image data) so the user's session is restored on refresh.
+
+### 6. Code Structure
+*   `App.tsx`: Main controller, state management, and loops.
+*   `Sidebar.tsx`: Render the tabbed lists.
+*   `OptionsDialog.tsx`: Configuration UI.
+*   `geminiService.ts`: API interactions (Generation, Validation, Analysis).
+*   `combinatorics.ts`: Logic to generate job permutations from options.
+*   `types.ts`: TypeScript interfaces for Job, SourceImage, AppOptions.
+*   `constants.ts`: Default values.
+
+## Key Behaviors
+*   **Cascading Delete**: Deleting a source image removes all associated jobs, gallery results, and failed items.
+*   **Auto-Download**: Generated images are automatically saved to disk.
+*   **Safety Settings**: Set all Gemini safety thresholds to `BLOCK_NONE` to allow artistic freedom, handling filtering via retry logic instead.
