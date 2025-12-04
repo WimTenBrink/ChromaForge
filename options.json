@@ -35,33 +35,50 @@
     ]
   },
   "environmentGroups": {
+    "Dungeons & Dragons": [
+        "As-Is (Skip)", "Ancient Ruins", "Bustling Medieval Market", "Dark Dungeon", "Dragon's Lair", "Dwarven Forge", "Elven Tree City", "Enchanted Forest", "Haunted Graveyard", "Magic Academy Library", "Mystical Swamp", "Royal Throne Room", "Tavern Interior", "Underdark Cavern", "Wizard's Tower"
+    ],
+    "Star Wars": [
+        "As-Is (Skip)", "Cloud City (Bespin)", "Coruscant Underworld", "Death Star Hangar", "Endor Forest", "Hoth Ice Caves", "Jedi Temple", "Mos Eisley Cantina", "Mustafar Lava Fields", "Naboo Palace", "Star Destroyer Bridge", "Tatooine Desert"
+    ],
+    "Star Trek": [
+        "As-Is (Skip)", "Borg Cube Interior", "Deep Space Nine Promenade", "Enterprise Bridge", "Enterprise Engineering", "Holodeck Grid", "Klingon Great Hall", "Planetary Surface (Class M)", "Romulan Warbird", "Ten Forward", "Vulcan Landscape"
+    ],
+    "Stargate": [
+        "As-Is (Skip)", "Abydos Desert", "Atlantis Gate Room", "Cheyenne Mountain Gate Room", "Goa'uld Mother Ship", "Off-world Temple", "Wraith Hive Ship"
+    ],
+    "Babylon 5": [
+        "As-Is (Skip)", "Babylon 5 Docking Bay", "Blue Sector Market", "Centauri Palace", "Minbari Crystal City", "Narn Homeworld", "Shadow Vessel Interior", "Zocalo"
+    ],
+    "Other Sci-Fi": [
+        "As-Is (Skip)", "Blade Runner City Street", "Cyberpunk Slums", "Dune Desert (Arrakis)", "Matrix Code Void", "Neon Tokyo", "Post-Apocalyptic Wasteland", "Space Station Corridor"
+    ],
     "Indoors": [
-      "As-Is (Skip)", "Attic", "Basement", "Bathroom", "Bunker", "Cave", "Dining Room", "Kitchen", "Laboratory", "Library", "Living Room", "Office", "Tavern", "Temple Interior", "Throne Room"
+      "As-Is (Skip)", "Attic", "Basement", "Bathroom", "Bunker", "Cave", "Dining Room", "Kitchen", "Laboratory", "Library", "Living Room", "Office"
     ],
     "Outdoors (Nature)": [
       "As-Is (Skip)", "Beach", "Canyon", "Desert", "Forest", "Jungle", "Meadow", "Mountain Peak", "River Bank", "Swamp", "Tundra", "Volcano"
-    ],
-    "Outdoors (Urban)": [
-      "As-Is (Skip)", "City Street", "Cyberpunk Alley", "Industrial Zone", "Market", "Ruins", "Skyscraper Rooftop", "Slums", "Village Square"
-    ],
-    "Space": [
-      "As-Is (Skip)", "Alien Planet", "Asteroid Field", "Deep Space", "Moon Surface", "Nebula", "Space Station", "Spaceship Bridge"
-    ],
-    "Fantasy": [
-      "As-Is (Skip)", "Crystal Cave", "Dungeon", "Enchanted Forest", "Floating Island", "Heaven", "Hellscape", "Wizard's Tower"
-    ],
-    "Sci-Fi": [
-      "As-Is (Skip)", "Cryo Chamber", "Holodeck", "Reactor Core", "Robot Factory", "Server Room"
-    ],
-    "Historical": [
-      "As-Is (Skip)", "Castle Courtyard", "Colosseum", "Pyramid", "Saloon", "Trench"
-    ],
-    "Underwater": [
-      "As-Is (Skip)", "Atlantis", "Coral Reef", "Deep Sea", "Sunken Ship"
-    ],
-    "Abstract / Studio": [
-      "As-Is (Skip)", "Abstract Geometric", "Green Screen", "Studio Lighting", "White Background"
     ]
+  },
+  "dndOutfits": {
+      "Fighter": ["As-Is (Skip)", "Chainmail Armor", "Gladiator Gear", "Leather Armor", "Mercenary Clothes", "Plate Armor", "Samurai Armor", "Scale Mail"],
+      "Cleric": ["As-Is (Skip)", "Ceremonial Robes", "Chain Shirt & Surcoat", "Healer's Vestments", "Heavy Plate & Symbol", "Traveler's Tunic"],
+      "Paladin": ["As-Is (Skip)", "Gilded Plate Armor", "Holy Knight Armor", "Oathbreaker Armor", "Shining Silver Plate", "Temple Guard Armor"],
+      "Monk": ["As-Is (Skip)", "Gi / Martial Arts Robe", "Simple Tunic & Pants", "Shaolin Robes", "Tight Wrapping / Bandages"],
+      "Rogue": ["As-Is (Skip)", "Dark Leather Armor", "Gilded Noble Clothes", "Hooded Cloak & Leathers", "Ninja Garb", "Street Rags"],
+      "Wizard": ["As-Is (Skip)", "Apprentice Robes", "Archmage Robes", "Scholarly Tunic", "Star-Patterned Cloak", "Traveler's Cloak"],
+      "Barbarian": ["As-Is (Skip)", "Bear Skin Cloak", "Fur Loincloth & Harness", "Hide Armor", "Tribal Tattoos & Kilt"],
+      "Druid": ["As-Is (Skip)", "Hide & Bone Armor", "Leaf & Vine Armor", "Shamanic Robes", "Wolf Pelt Cloak"]
+  },
+  "dndWeapons": {
+      "Fighter": ["As-Is (Skip)", "Battleaxe", "Greatsword", "Halberd", "Longbow", "Longsword & Shield", "Two Shortswords", "Warhammer"],
+      "Cleric": ["As-Is (Skip)", "Flail", "Mace", "Morningstar", "Staff", "Warhammer & Shield"],
+      "Paladin": ["As-Is (Skip)", "Greatsword", "Lance", "Longsword & Shield", "Maul", "Warhammer"],
+      "Monk": ["As-Is (Skip)", "Bo Staff", "Nunchaku", "Quarterstaff", "Shortsword", "Unarmed / Fists"],
+      "Rogue": ["As-Is (Skip)", "Crossbow (Hand)", "Daggers (Dual)", "Rapier", "Shortbow", "Shortsword"],
+      "Wizard": ["As-Is (Skip)", "Crystal Orb", "Dagger", "Magic Wand", "Quarterstaff", "Spellbook"],
+      "Barbarian": ["As-Is (Skip)", "Greataxe", "Greatclub", "Greatsword", "Maul", "Two Handaxes"],
+      "Druid": ["As-Is (Skip)", "Club", "Scimitar", "Sickle", "Wooden Staff"]
   },
   "itemGroups": {
     "Weapons": [
@@ -89,8 +106,19 @@
     "Uniforms": ["As-Is (Skip)", "Chef's Whites", "Lab Coat", "Maid Outfit", "Military Fatigues", "Nurse Uniform", "Pilot Suit", "Police Uniform", "School Uniform"],
     "Armor / Fantasy": ["As-Is (Skip)", "Chainmail", "Cybernetic Suit", "Leather Armor", "Paladin Armor", "Plate Mail", "Power Armor", "Thief Leathers", "Wizard Robes"],
     "Beach / Swim": ["As-Is (Skip)", "Bikini", "One-Piece Swimsuit", "Sarong", "Swim Trunks", "Wetsuit"],
+    "Bondage": [
+        "As-Is (Skip)", "Ball and Chain", "Bound in Heavy Chains", "Bound in Ropes (Shibari)", "Caught in a Net", 
+        "Chained to Wall", "Collar and Leash", "Cuffs and Collar", "Ensnared by Vines", "Frozen in Carbonite", 
+        "Gagged and Bound", "Handcuffs (Behind Back)", "Handcuffs (Front)", "Heavy Iron Shackles", "Hogtied", 
+        "Imprisoned in Cage", "Pillory Restraint", "Rope Harness", "Silk Rope Binding", "Spider Web Cocoon", 
+        "Straitjacket", "Suspended by Chains", "Tied to a Chair", "Tied to a Pole", "Wooden Stocks", "Wrist & Ankle Manacles"
+    ],
     "Implied Nudity / Artistic": [
-      "As-Is (Skip)", "Body Paint (Gold)", "Body Paint (Silver)", "Body Paint (Tribal)", "Chained", "Flowers & Vines", "Mud & Warpaint", "Nude (Implied)", "Shadows & Silhouette", "Silk Sheets Only", "Strategic Jewelry"
+      "As-Is (Skip)", "Backlit Silhouette", "Bandages (Mummy)", "Body Paint (Floral)", "Body Paint (Gold)", "Body Paint (Silver)", "Body Paint (Tribal)", 
+      "Covered in Blood", "Covered in Clay", "Covered in Mud", "Covered in Oil", "Covered in Slime", "Draped in Fur Stole", 
+      "Draped in Sheet", "Draped in Silk", "Flowers & Vines Coverage", "Foam/Bubbles Coverage", "Fog/Mist Obscured", 
+      "Long Hair Coverage", "Ribbon Wrapping", "Shadows (Chiaroscuro)", "Sheer Lace Lingerie", "Sheer Silk Veil", 
+      "Strategic Jewelry", "Strategic Object Placement", "Translucent Plastic", "Wet White Shirt"
     ]
   },
   "decorationGroups": {
@@ -110,12 +138,13 @@
     "gender": ["As-Is (Skip)", "Androgynous", "Female", "Intersex", "Male", "Non-binary"],
     "age": ["As-Is (Skip)", "Child", "Preteen", "Teen", "Young Adult", "Adult", "Mature", "Old", "Ancient"],
     "bodyType": ["As-Is (Skip)", "Athletic", "Average", "Bodybuilder", "Chubby", "Curvy", "Fat", "Fit", "Heavy", "Lean", "Muscular", "Obese", "Plump", "Skinny", "Slender", "Stocky", "Tall", "Thin", "Voluptuous"],
+    "breastSize": ["As-Is (Skip)", "Cup AA", "Cup A", "Cup B", "Cup C", "Cup D", "Cup DD", "Cup E", "Cup F"],
     "skin": ["As-Is (Skip)", "Albino", "Bioluminescent", "Black", "Blueish", "Brown", "Dark Brown", "Fair", "Greenish", "Metallic", "Pale", "Reddish", "Tan", "Tan/Tan lines", "Transparent"],
     "eyeColor": ["As-Is (Skip)", "Amber", "Black", "Blue", "Brown", "Glowing", "Gold", "Green", "Grey", "Hazel", "Heterochromia", "Red", "Silver", "Violet"],
     "hair": ["As-Is (Skip)", "Bald", "Black", "Blonde", "Blue", "Brunette", "Copper", "Fiery", "Gold", "Green", "Grey", "Pink", "Platinum", "Purple", "Rainbow", "Red", "Silver", "White"],
     "emotions": ["As-Is (Skip)", "Angry", "Bored", "Confident", "Crazy", "Crying", "Determined", "Disgusted", "Excited", "Fearful", "Happy", "Laughing", "Love", "Neutral", "Playful", "Sad", "Screaming", "Seductive", "Shy", "Stoic", "Surprised"],
     "actions": ["As-Is (Skip)", "Casting Spell", "Dancing", "Diving", "Driving", "Eating", "Fighting", "Floating", "Flying", "Jumping", "Kneeling", "Pose (Dynamic)", "Pose (Relaxed)", "Reading", "Riding", "Running", "Shooting", "Sitting", "Sleeping", "Standing", "Swimming", "Walking", "Working", "Writing"],
-    "shoes": ["As-Is (Skip)", "Barefoot", "Barefoot/Anklets", "Barefoot/Chained", "Boots", "Dress Shoes", "Greaves", "High Heels", "Leg Wraps", "Magnetic Boots", "Sandals", "Sneakers", "Space Boots"],
+    "shoes": ["As-Is (Skip)", "Barefoot", "Boots", "Dress Shoes", "Greaves", "High Heels", "Leg Wraps", "Magnetic Boots", "Sandals", "Sneakers", "Space Boots"],
     "technology": [
         "As-Is (Skip)", 
         "Stone Age / Primitive", 

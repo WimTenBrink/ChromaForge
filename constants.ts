@@ -1,9 +1,12 @@
+
+
 import { AppOptions } from "./types";
 
 export const DEFAULT_OPTIONS: AppOptions = {
   gender: ['Female'],
   age: [],
   bodyType: [],
+  breastSize: [],
   skin: [],
   hair: [],
   eyeColor: [],
@@ -26,6 +29,24 @@ export const DEFAULT_OPTIONS: AppOptions = {
   decorations: [],
   skinConditions: [],
   
+  // D&D Defaults
+  dndFighterOutfit: [],
+  dndFighterWeapon: [],
+  dndClericOutfit: [],
+  dndClericWeapon: [],
+  dndPaladinOutfit: [],
+  dndPaladinWeapon: [],
+  dndRogueOutfit: [],
+  dndRogueWeapon: [],
+  dndWizardOutfit: [],
+  dndWizardWeapon: [],
+  dndMonkOutfit: [],
+  dndMonkWeapon: [],
+  dndBarbarianOutfit: [],
+  dndBarbarianWeapon: [],
+  dndDruidOutfit: [],
+  dndDruidWeapon: [],
+
   replaceBackground: false,
   removeCharacters: false,
   
@@ -33,3 +54,14 @@ export const DEFAULT_OPTIONS: AppOptions = {
 };
 
 export const MAX_CONCURRENT_JOBS = 3;
+
+export const DND_CLASSES = [
+    'Fighter', 
+    'Cleric', 
+    'Paladin', 
+    'Monk', 
+    'Rogue', 
+    'Wizard', 
+    'Barbarian', 
+    'Druid'
+];

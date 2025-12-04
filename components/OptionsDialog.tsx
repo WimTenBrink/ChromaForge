@@ -1,7 +1,10 @@
+
+
 import React, { useState, useMemo, useRef } from 'react';
-import { X, User, Zap, Map as MapIcon, Clock, Sparkles, Monitor, Package, Sliders, Palette, Lightbulb, Camera, Smile, Cloud, Brush, Calculator, Ban, Shirt, CheckSquare, Square, Layers, Activity, Droplets, Download, Upload, Check } from 'lucide-react';
+import { X, User, Zap, Map as MapIcon, Clock, Sparkles, Monitor, Package, Sliders, Palette, Lightbulb, Camera, Smile, Cloud, Brush, Calculator, Ban, Shirt, CheckSquare, Square, Layers, Activity, Droplets, Download, Upload, Check, Sword } from 'lucide-react';
 import { AppOptions, GlobalConfig } from '../types';
-import { DEFAULT_OPTIONS } from '../constants';
+import { DEFAULT_OPTIONS, DND_CLASSES } from '../constants';
+import { countPermutations } from '../utils/combinatorics';
 
 interface Props {
   isOpen: boolean;
@@ -12,7 +15,7 @@ interface Props {
 }
 
 const OptionsDialog: React.FC<Props> = ({ isOpen, onClose, options, setOptions, config }) => {
-  const [activeTab, setActiveTab] = useState<'CHAR' | 'ATTIRE' | 'SPECIES' | 'ITEMS' | 'DECOR' | 'SKIN_FX' | 'TECH' | 'ENV' | 'TIME' | 'WEATHER' | 'RATIO' | 'STYLE' | 'LIGHTING' | 'CAMERA' | 'MOOD' | 'ACTION' | 'CUSTOM'>('CHAR');
+  const [activeTab, setActiveTab] = useState<'CHAR' | 'ATTIRE' | 'DND' | 'SPECIES' | 'ITEMS' | 'DECOR' | 'SKIN_FX' | 'TECH' | 'ENV' | 'TIME' | 'WEATHER' | 'RATIO' | 'STYLE' | 'LIGHTING' | 'CAMERA' | 'MOOD' | 'ACTION' | 'CUSTOM'>('CHAR');
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // State for Save Preset UI
@@ -20,23 +23,7 @@ const OptionsDialog: React.FC<Props> = ({ isOpen, onClose, options, setOptions, 
   const [presetName, setPresetName] = useState('ChromaForge');
 
   const permutationCount = useMemo(() => {
-    return (Object.keys(options) as Array<keyof AppOptions>).reduce((acc, key) => {
-        // Skip control keys
-        if (key === 'combinedGroups') return acc;
-        
-        const val = options[key];
-        // Only check length for arrays (skip boolean flags)
-        if (Array.isArray(val)) {
-            // If this category is combined, it only counts as 1 permutation regardless of how many items are selected (if > 0)
-            if (options.combinedGroups.includes(key)) {
-                return acc * (val.length > 0 ? 1 : 1);
-            }
-            
-            const len = val.length;
-            return acc * (len > 0 ? len : 1);
-        }
-        return acc;
-    }, 1);
+    return countPermutations(options);
   }, [options]);
 
   if (!isOpen || !config) return null;
@@ -211,6 +198,40 @@ const OptionsDialog: React.FC<Props> = ({ isOpen, onClose, options, setOptions, 
           ))}
       </div>
   );
+  
+  const renderDndSection = () => {
+     return (
+         <div className="space-y-12">
+            {DND_CLASSES.map(cls => {
+                const outfitKey = `dnd${cls}Outfit` as keyof AppOptions;
+                const weaponKey = `dnd${cls}Weapon` as keyof AppOptions;
+                const outfits = config.dndOutfits[cls] || [];
+                const weapons = config.dndWeapons[cls] || [];
+                
+                return (
+                    <div key={cls} className="bg-slate-800/20 rounded-xl p-4 border border-slate-800">
+                        <h3 className="text-xl font-bold text-emerald-400 mb-6 border-b border-emerald-900/50 pb-2">{cls}</h3>
+                        
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                             <div>
+                                 {renderCombineHeader(outfitKey, `${cls} Outfits`)}
+                                 <div className="grid grid-cols-2 gap-2">
+                                     {outfits.map(item => renderOptionItem(outfitKey, item))}
+                                 </div>
+                             </div>
+                             <div>
+                                 {renderCombineHeader(weaponKey, `${cls} Weapons`)}
+                                 <div className="grid grid-cols-2 gap-2">
+                                     {weapons.map(item => renderOptionItem(weaponKey, item))}
+                                 </div>
+                             </div>
+                        </div>
+                    </div>
+                );
+            })}
+         </div>
+     );
+  };
 
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/80 backdrop-blur-sm">
@@ -304,6 +325,7 @@ const OptionsDialog: React.FC<Props> = ({ isOpen, onClose, options, setOptions, 
              {[
                { id: 'CHAR', label: 'Characters', icon: User },
                { id: 'ATTIRE', label: 'Attire', icon: Shirt },
+               { id: 'DND', label: 'D&D Classes', icon: Sword },
                { id: 'SPECIES', label: 'Species', icon: Sparkles },
                { id: 'ITEMS', label: 'Items', icon: Package },
                { id: 'ACTION', label: 'Actions', icon: Activity },
@@ -349,6 +371,7 @@ const OptionsDialog: React.FC<Props> = ({ isOpen, onClose, options, setOptions, 
                     {renderCheckboxes('gender', 'Gender')}
                     {renderCheckboxes('age', 'Age')}
                     {renderCheckboxes('bodyType', 'Body Type')}
+                    {renderCheckboxes('breastSize', 'Breast Size')}
                     {renderCheckboxes('skin', 'Skin Color')}
                     {renderCheckboxes('eyeColor', 'Eye Color')}
                     {renderCheckboxes('hair', 'Hair Color')}
@@ -370,6 +393,19 @@ const OptionsDialog: React.FC<Props> = ({ isOpen, onClose, options, setOptions, 
                        {renderCheckboxes('shoes', 'Footwear')}
                     </div>
                 </div>
+              </div>
+            )}
+            {activeTab === 'DND' && (
+              <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+                 {options.removeCharacters && (
+                    <div className="p-4 bg-red-900/20 border border-red-500/30 rounded-lg flex items-center gap-3 text-red-200 mb-4">
+                        <Ban size={20} />
+                        <span className="text-sm font-medium">Class options are disabled in Landscape Mode.</span>
+                    </div>
+                 )}
+                 <div className={options.removeCharacters ? 'opacity-30 pointer-events-none grayscale' : ''}>
+                     {renderDndSection()}
+                 </div>
               </div>
             )}
             {activeTab === 'SPECIES' && (

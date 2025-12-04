@@ -1,16 +1,17 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Play, Pause, Settings, Terminal, Plus, Shield, ShieldCheck, Trash2, Loader2, Activity, Book, Upload, Clock, Save, FolderOpen } from 'lucide-react';
-import InputList from './components/InputList';
-import FailedList from './components/FailedList';
+
+import React, { useState, useEffect, useRef } from 'react';
+import { Play, Pause, Settings, Terminal, Shield, ShieldCheck, Trash2, Loader2, Activity, Book, Upload, Clock, Save, FolderOpen, Plus, Search, RefreshCw } from 'lucide-react';
+import Sidebar from './components/Sidebar';
 import OptionsDialog from './components/OptionsDialog';
 import ConsoleDialog from './components/ConsoleDialog';
 import ImageDetailDialog from './components/ImageDetailDialog';
 import ManualDialog from './components/ManualDialog';
-import { AppOptions, Job, GeneratedImage, FailedItem, ImageAnalysis, GlobalConfig, SourceImage } from './types';
+import { AppOptions, Job, GeneratedImage, FailedItem, ImageAnalysis, GlobalConfig, SourceImage, ValidationJob } from './types';
 import { DEFAULT_OPTIONS, MAX_CONCURRENT_JOBS } from './constants';
 import { generatePermutations, buildPromptFromCombo } from './utils/combinatorics';
-import { processImage, analyzeImage } from './services/geminiService';
+import { processImage, analyzeImage, validateFileName } from './services/geminiService';
 import { log } from './services/logger';
+import { saveState, loadState } from './services/db';
 
 const App: React.FC = () => {
   // --- State ---
@@ -19,12 +20,17 @@ const App: React.FC = () => {
   
   // Data Store
   const [sourceRegistry, setSourceRegistry] = useState<Map<string, SourceImage>>(new Map());
+  const [validationQueue, setValidationQueue] = useState<ValidationJob[]>([]);
   const [jobQueue, setJobQueue] = useState<Job[]>([]); // The main queue (Queued, Processing, Completed)
   
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
   const [failedItems, setFailedItems] = useState<FailedItem[]>([]);
   
+  // Filtering
+  const [selectedSourceIds, setSelectedSourceIds] = useState<Set<string>>(new Set());
+
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isValidating, setIsValidating] = useState(false);
   
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
   const [isConsoleOpen, setIsConsoleOpen] = useState(false);
@@ -35,6 +41,7 @@ const App: React.FC = () => {
   
   const [apiKeyReady, setApiKeyReady] = useState(false);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(true);
 
   // File Input Ref for Import
   const queueFileInputRef = useRef<HTMLInputElement>(null);
@@ -47,7 +54,6 @@ const App: React.FC = () => {
   const processingCount = jobQueue.filter(j => j.status === 'PROCESSING').length;
   
   const totalVariationsScheduled = jobQueue.length + generatedImages.length + failedItems.length;
-  const totalCompleted = generatedImages.length;
   const totalProcessed = generatedImages.length + failedItems.length;
   const progressPercentage = totalVariationsScheduled === 0 ? 0 : Math.round((totalProcessed / totalVariationsScheduled) * 100);
 
@@ -77,7 +83,7 @@ const App: React.FC = () => {
     if (savedOptions) {
         try {
             const parsed = JSON.parse(savedOptions);
-            setOptions({ ...DEFAULT_OPTIONS, ...parsed });
+            setOptions({ ...DEFAULT_OPTIONS, ...(parsed as object) });
         } catch (e) { console.error('Failed to parse options', e); }
     }
 
@@ -92,11 +98,32 @@ const App: React.FC = () => {
           log('ERROR', 'Failed to load options.json', err);
           alert("Failed to load configuration file. Check console.");
       });
+
+    // Load Queue from DB
+    loadState().then(({ jobs, sources }) => {
+        if (jobs.length > 0 || sources.size > 0) {
+            setJobQueue(jobs);
+            setSourceRegistry(sources);
+            log('INFO', 'Restored previous session', { jobs: jobs.length, sources: sources.size });
+        }
+        setIsRestoring(false);
+    });
   }, []);
 
   useEffect(() => {
       localStorage.setItem('chromaforge_options', JSON.stringify(options));
   }, [options]);
+
+  // Persist Queue Changes to DB
+  useEffect(() => {
+      if (isRestoring) return;
+      
+      const timer = setTimeout(() => {
+          saveState(jobQueue, sourceRegistry);
+      }, 1000); // Debounce saves
+      
+      return () => clearTimeout(timer);
+  }, [jobQueue, sourceRegistry, isRestoring]);
 
   // --- Initialization ---
   useEffect(() => {
@@ -136,7 +163,7 @@ const App: React.FC = () => {
       // Serialize Registry (Exclude File objects, they aren't serializable, rely on base64)
       const registryArray = Array.from(sourceRegistry.entries()).map(([id, src]) => {
           return [id, {
-              ...src,
+              ...(src as any),
               file: null, // Drop the file object
               previewUrl: '' // Drop the blob URL (will regenerate on import)
           }];
@@ -190,7 +217,7 @@ const App: React.FC = () => {
                       const previewUrl = URL.createObjectURL(blob);
                       
                       newRegistry.set(id, {
-                          ...src,
+                          ...(src as object),
                           file: null,
                           previewUrl
                       });
@@ -254,11 +281,8 @@ const App: React.FC = () => {
     // 1. Snapshot the current options
     const optionsSnapshot = JSON.parse(JSON.stringify(options));
     
-    // 2. Pre-calculate variations count
-    const permutations = generatePermutations(optionsSnapshot);
-    
-    // 3. Process each file
-    const newJobs: Job[] = [];
+    // 2. Add to Validation Queue first
+    const newValidationJobs: ValidationJob[] = [];
     
     for (let i = 0; i < fileList.length; i++) {
         const file = fileList[i];
@@ -271,140 +295,127 @@ const App: React.FC = () => {
 
         const previewUrl = URL.createObjectURL(file);
         
-        // Store Source Image
+        // Store Source Image with VALIDATING status
         setSourceRegistry(prev => new Map(prev).set(sourceId, {
             id: sourceId,
             file,
             base64Data: base64,
-            name: file.name,
+            name: "Analyzing...", // Placeholder
             type: file.type,
             previewUrl,
-            // analysis: undefined // Analysis happens later or implicitly
+            status: 'VALIDATING'
         }));
 
-        // Generate N Jobs for this image immediately
-        permutations.forEach(combo => {
-            const summaryParts = Object.entries(combo)
-                .filter(([key, value]) => {
-                    if (key === 'combinedGroups' || key === 'optionsSnapshot' || key === 'removeCharacters' || key === 'replaceBackground') return false;
-                    if (!value) return false;
-                    const valStr = String(value);
-                    return !valStr.startsWith("As-Is") && valStr !== "Original" && valStr !== "default" && valStr !== "none";
-                })
-                .map(([key, value]) => {
-                    const label = key.replace(/([A-Z])/g, " $1").replace(/^./, str => str.toUpperCase());
-                    return `${label}: ${value}`;
-                });
-            
-            if (combo.removeCharacters) summaryParts.unshift("NO CHARACTERS");
-            if (combo.replaceBackground) summaryParts.unshift("REPLACE BG");
-
-            newJobs.push({
-                id: crypto.randomUUID(),
-                sourceImageId: sourceId,
-                originalFilename: file.name,
-                generatedTitle: "Pending...",
-                prompt: buildPromptFromCombo(combo),
-                optionsSummary: summaryParts.join(', '),
-                aspectRatio: combo.aspectRatio,
-                optionsSnapshot: optionsSnapshot,
-                status: 'QUEUED',
-                retryCount: 0
-            });
+        newValidationJobs.push({
+            id: crypto.randomUUID(),
+            sourceImageId: sourceId,
+            file: file,
+            optionsSnapshot: optionsSnapshot
         });
-        
-        // Trigger Analysis in background for this Source Image
-        // We don't block job creation, but we update metadata when analysis is done
-        analyzeSourceImage(sourceId, base64, file.type);
     }
 
-    setJobQueue(prev => [...prev, ...newJobs]);
-    log('INFO', 'Added new jobs to queue', { count: newJobs.length });
+    setValidationQueue(prev => [...prev, ...newValidationJobs]);
+    log('INFO', 'Added files to validation queue', { count: newValidationJobs.length });
   };
 
-  const analyzeSourceImage = async (sourceId: string, base64: string, mimeType: string) => {
-      try {
-          const analysis = await analyzeImage(base64, mimeType);
-          setSourceRegistry(prev => {
-              const newMap = new Map(prev);
-              const existing = newMap.get(sourceId);
-              if (existing) {
-                  // Use Object.assign instead of spread to avoid TS error:
-                  // "Spread types may only be created from object types"
-                  newMap.set(sourceId, Object.assign({}, existing, { analysis }));
-              }
-              return newMap;
-          });
-          // Note: We don't automatically update job prompts here because prompts are generated from combo logic.
-          // If we wanted to inject analysis into prompt, we'd need to regenerate prompts or inject dynamic placeholders.
-          // For now, analysis is for user info.
-          log('INFO', 'Background Analysis Complete', { sourceId, title: analysis.title });
-          
-      } catch (e) {
-          log('WARN', 'Background Analysis Failed', { sourceId, error: e });
-      }
-  };
+  // --- Validation Loop ---
+  useEffect(() => {
+    if (validationQueue.length === 0 || isValidating) return;
+    if (!apiKeyReady && validationQueue.length > 0) return; // Wait for key
+
+    const validateNext = async () => {
+        setIsValidating(true);
+        const job = validationQueue[0];
+        try {
+             log('INFO', 'Validating File Name', { sourceId: job.sourceImageId });
+             const generatedName = await validateFileName(job.file);
+             
+             // Update source registry
+             setSourceRegistry(prev => {
+                 const newMap = new Map(prev);
+                 const src = newMap.get(job.sourceImageId);
+                 if (src) {
+                     newMap.set(job.sourceImageId, {
+                         ...(src as SourceImage),
+                         name: generatedName,
+                         status: 'READY'
+                     });
+                 }
+                 return newMap;
+             });
+
+             // Generate Permutations and Jobs
+             const permutations = generatePermutations(job.optionsSnapshot);
+             const newJobs: Job[] = [];
+             
+             permutations.forEach((combo, index) => {
+                const summaryParts = Object.entries(combo)
+                    .filter(([key, value]) => {
+                        if (key === 'combinedGroups' || key === 'optionsSnapshot' || key === 'removeCharacters' || key === 'replaceBackground') return false;
+                        if (!value) return false;
+                        const valStr = String(value);
+                        return !valStr.startsWith("As-Is") && valStr !== "Original" && valStr !== "default" && valStr !== "none";
+                    })
+                    .map(([key, value]) => {
+                        const label = key.replace(/([A-Z])/g, " $1").replace(/^./, str => str.toUpperCase());
+                        return `${label}: ${value}`;
+                    });
+                
+                if (combo.removeCharacters) summaryParts.unshift("NO CHARACTERS");
+                if (combo.replaceBackground) summaryParts.unshift("REPLACE BG");
+
+                // Append index number to filename if multiple jobs
+                const displayFilename = permutations.length > 1 
+                    ? `${generatedName}_${(index + 1).toString().padStart(3, '0')}`
+                    : generatedName;
+
+                newJobs.push({
+                    id: crypto.randomUUID(),
+                    sourceImageId: job.sourceImageId,
+                    originalFilename: displayFilename,
+                    generatedTitle: "Pending...",
+                    prompt: buildPromptFromCombo(combo),
+                    optionsSummary: summaryParts.join(', '),
+                    aspectRatio: combo.aspectRatio,
+                    optionsSnapshot: job.optionsSnapshot,
+                    status: 'QUEUED',
+                    retryCount: 0
+                });
+            });
+
+            setJobQueue(prev => [...prev, ...newJobs]);
+            log('INFO', 'Validation Complete. Jobs Created.', { sourceId: job.sourceImageId, jobCount: newJobs.length });
+
+        } catch (e) {
+            log('ERROR', 'Validation Failed', { error: e });
+            // Even if validation fails, we might want to proceed with original name? 
+            // For now, let's just mark it ready with original name
+            setSourceRegistry(prev => {
+                const newMap = new Map(prev);
+                const src = newMap.get(job.sourceImageId);
+                if (src) {
+                    newMap.set(job.sourceImageId, { ...(src as SourceImage), status: 'READY' });
+                }
+                return newMap;
+            });
+        } finally {
+            // Remove from validation queue
+            setValidationQueue(prev => prev.slice(1));
+            setIsValidating(false);
+        }
+    };
+
+    validateNext();
+  }, [validationQueue, isValidating, apiKeyReady]);
+
 
   const handleRemoveJob = (id: string) => {
     setJobQueue(prev => prev.filter(j => j.id !== id));
   };
-  
-  const handleRemoveJobGroup = (sourceImageId: string) => {
-      setJobQueue(prev => prev.filter(j => j.sourceImageId !== sourceImageId));
-  };
-
-  const handleMoveJob = (id: string, direction: 'up' | 'down' | 'top' | 'bottom') => {
-      setJobQueue(prev => {
-          const index = prev.findIndex(j => j.id === id);
-          if (index === -1) return prev;
-          
-          const newQueue = [...prev];
-          const item = newQueue.splice(index, 1)[0];
-          
-          // Find boundary of queued items (don't move into completed/processing if we can avoid complex logic, 
-          // but for now we just move in list. Processing filter handles display)
-          
-          if (direction === 'top') {
-              // Move to top of Queued items? Or absolute top?
-              // Absolute top is fine, the processor picks from top.
-              newQueue.unshift(item);
-          } else if (direction === 'bottom') {
-              newQueue.push(item);
-          } else if (direction === 'up') {
-              newQueue.splice(Math.max(0, index - 1), 0, item);
-          } else if (direction === 'down') {
-              newQueue.splice(Math.min(newQueue.length, index + 1), 0, item);
-          }
-          
-          return newQueue;
-      });
-  };
-  
-  const handleZoom = (data: { url: string, title: string, metadata: string }) => {
-      setViewedImage(data);
-  };
 
   const autoDownloadImage = (imageUrl: string, originalFilename: string, optionsSummary: string) => {
-      // Determine Type from optionsSummary
-      let type = "Colorized";
-      const summaryLower = optionsSummary.toLowerCase();
-      
-      if (summaryLower.includes("no characters")) {
-          type = "Background";
-      } else if (summaryLower.includes("nude")) {
-          type = "Nude";
-          if (summaryLower.includes("opposite")) {
-             type = "Nude-Opposite";
-          }
-      }
-
-      // Process Original Filename (Remove extension)
-      const nameParts = originalFilename.split('.');
-      if (nameParts.length > 1) nameParts.pop();
-      const namePart = nameParts.join('.');
-
-      // "Line-<Type>-<Original>.png"
-      const filename = `Line-${type}-${namePart}.png`;
+      // Use originalFilename which has already been generated (e.g., 'elf-warrior_001')
+      const filename = `${originalFilename}.png`;
       
       const link = document.createElement('a');
       link.href = imageUrl;
@@ -441,7 +452,7 @@ const App: React.FC = () => {
     const nextJob = jobQueue.find(j => j.status === 'QUEUED');
     
     if (!nextJob) {
-        if (activeWorkers === 0) {
+        if (activeWorkers === 0 && validationQueue.length === 0) {
             setIsProcessing(false); // All done
         }
         return;
@@ -477,7 +488,8 @@ const App: React.FC = () => {
             prompt: job.prompt,
             optionsUsed: job.optionsSummary,
             originalFilename: job.originalFilename,
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            optionsSnapshot: job.optionsSnapshot
         };
 
         setGeneratedImages(prev => [generated, ...prev]);
@@ -487,7 +499,7 @@ const App: React.FC = () => {
         setJobQueue(prev => prev.filter(j => j.id !== job.id));
 
     } catch (error: any) {
-        const currentRetryCount = (job.retryCount || 0) + 1;
+        const currentRetryCount = (job.retryCount || 0);
         const source = sourceRegistry.get(job.sourceImageId);
         
         const failed: FailedItem = {
@@ -507,36 +519,52 @@ const App: React.FC = () => {
     }
   };
 
+  // --- Repeat Job Logic ---
+  const handleRepeatJob = (img: GeneratedImage) => {
+      // Reconstruct job from GeneratedImage info
+      const sourceId = img.sourceImageId;
+      const options = img.optionsSnapshot;
+
+      if (!sourceId || !options) {
+          log('WARN', 'Cannot repeat job: missing source or options', {});
+          return;
+      }
+      
+      const newJob: Job = {
+        id: crypto.randomUUID(),
+        sourceImageId: sourceId,
+        originalFilename: img.originalFilename,
+        generatedTitle: "Repeated Job",
+        prompt: img.prompt,
+        optionsSummary: img.optionsUsed,
+        aspectRatio: undefined, // Could be extracted from options if needed
+        optionsSnapshot: options,
+        status: 'QUEUED',
+        retryCount: 0
+      };
+
+      setJobQueue(prev => [newJob, ...prev]);
+      if (!isProcessing) setIsProcessing(true);
+      log('INFO', 'Job Repeated', { sourceId });
+  };
+
   // --- Retry Handlers ---
 
   const handleRetry = (item: FailedItem) => {
-      if (item.retryCount >= 5) return;
+      // Check limits before retrying
+      const isSafety = item.error.toLowerCase().includes('prohibited') || item.error.toLowerCase().includes('safety');
+      const limit = isSafety ? 1 : 3;
+
+      if (item.retryCount >= limit) return;
       
       setFailedItems(prev => prev.filter(f => f.id !== item.id));
       
       if (item.originalJob) {
-          const retryJob: Job = { ...item.originalJob, retryCount: item.retryCount, status: 'QUEUED' };
-          // Add to top of queue for priority? Or bottom?
-          // User said "process up to three images... from top to bottom".
-          // Usually retries go to end or top. Let's put at top.
+          const retryJob: Job = { ...(item.originalJob as Job), retryCount: item.retryCount + 1, status: 'QUEUED' };
+          // Add to top of queue for priority
           setJobQueue(prev => [retryJob, ...prev]);
           if (!isProcessing) setIsProcessing(true);
       }
-  };
-
-  const handleRetryAll = () => {
-      const retryableItems = failedItems.filter(f => f.retryCount < 5);
-      if (retryableItems.length === 0) return;
-
-      const idsToRetry = new Set(retryableItems.map(f => f.id));
-      setFailedItems(prev => prev.filter(f => !idsToRetry.has(f.id)));
-
-      const jobsToRetry = retryableItems
-          .filter(f => f.originalJob)
-          .map(f => ({ ...f.originalJob!, retryCount: f.retryCount, status: 'QUEUED' } as Job));
-      
-      setJobQueue(prev => [...prev, ...jobsToRetry]);
-      if (!isProcessing) setIsProcessing(true);
   };
 
   const handleDeleteFailed = (id: string) => {
@@ -545,8 +573,6 @@ const App: React.FC = () => {
   
   const handleDeleteGalleryItem = (id: string) => {
       setGeneratedImages(prev => prev.filter(img => img.id !== id));
-      // Note: We do not delete source images automatically here, as other jobs might rely on them.
-      // If the user wants to clear memory, they can reload the page or we implement explicit cleanup later.
   };
 
   const handleClearGallery = () => {
@@ -555,11 +581,49 @@ const App: React.FC = () => {
       setGeneratedImages([]);
   };
 
+  const handleToggleSourceFilter = (id: string) => {
+      setSelectedSourceIds(prev => {
+          const next = new Set(prev);
+          if (next.has(id)) next.delete(id);
+          else next.add(id);
+          return next;
+      });
+  };
+
+  const handleDeleteSource = (id: string) => {
+      // Remove source
+      setSourceRegistry(prev => {
+          const next = new Map(prev);
+          next.delete(id);
+          return next;
+      });
+      // Remove all related active jobs
+      setJobQueue(prev => prev.filter(j => j.sourceImageId !== id));
+      // Remove from validation queue
+      setValidationQueue(prev => prev.filter(j => j.sourceImageId !== id));
+      // Remove from failed/blocked lists
+      setFailedItems(prev => prev.filter(f => f.sourceImageId !== id));
+      // Remove from generated gallery
+      setGeneratedImages(prev => prev.filter(g => g.sourceImageId !== id));
+      // Remove related filters
+      setSelectedSourceIds(prev => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+      });
+  };
+
   // --- Status Derivation ---
   let currentStatusTitle = 'SYSTEM IDLE';
   let currentStatusDetail = 'Ready to process queue.';
 
-  if (isProcessing) {
+  if (isRestoring) {
+      currentStatusTitle = 'RESTORING';
+      currentStatusDetail = 'Loading previous session...';
+  } else if (isValidating) {
+      currentStatusTitle = 'VALIDATING';
+      currentStatusDetail = `Analyzing upload ${validationQueue.length}...`;
+  } else if (isProcessing) {
     if (processingCount > 0) {
         currentStatusTitle = `GENERATING (${processingCount}/${MAX_CONCURRENT_JOBS})`;
         currentStatusDetail = `Queue: ${activeJobs.length - processingCount} pending`;
@@ -589,6 +653,11 @@ const App: React.FC = () => {
     }
   };
 
+  // --- Filtering Logic for Main Gallery ---
+  const displayImages = selectedSourceIds.size > 0 
+      ? generatedImages.filter(img => selectedSourceIds.has(img.sourceImageId))
+      : generatedImages;
+
   return (
     <div 
         className="flex flex-col h-screen bg-slate-950 text-slate-200 font-sans relative"
@@ -617,7 +686,7 @@ const App: React.FC = () => {
       )}
       
       {/* Header */}
-      <header className="h-16 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-6 shrink-0 z-20">
+      <header className="relative h-16 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-6 shrink-0 z-20 shadow-xl">
         <div className="flex items-center gap-4">
             <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center shadow-lg shadow-emerald-900/50">
                 <span className="text-black font-black text-xl">C</span>
@@ -628,51 +697,36 @@ const App: React.FC = () => {
             </div>
         </div>
 
-        {/* Detailed Stats in Header */}
-        <div className="hidden lg:flex flex-1 mx-8 bg-slate-800/50 border border-slate-700/50 rounded-lg p-1.5 items-center justify-around text-xs font-mono relative overflow-hidden group">
-            {/* Progress Bar Background */}
-            <div 
-                className="absolute bottom-0 left-0 h-1 bg-emerald-500/50 transition-all duration-500 ease-out z-0"
-                style={{ width: `${progressPercentage}%` }}
-            />
-
-            <div className="flex flex-col items-center leading-none z-10">
-                <span className="text-slate-500 text-[9px]">PENDING</span>
-                <span className="text-slate-300 font-bold">{activeJobs.length}</span>
-            </div>
-            <div className="w-px h-6 bg-slate-700 z-10" />
-            <div className="flex flex-col items-center leading-none z-10">
-                <span className="text-emerald-500 text-[9px]">COMPLETED</span>
-                <span className="text-emerald-400 font-bold">{totalCompleted}</span>
-            </div>
+        {/* Detailed Stats Container - Responsive */}
+        <div className="hidden lg:flex flex-1 mx-8 bg-slate-800/50 border border-slate-700/50 rounded-lg p-1.5 items-center justify-around text-xs font-mono group">
             
-            <div className="w-px h-6 bg-slate-700 z-10" />
-            
-            {/* New Progress Section */}
-            <div className="flex flex-col items-center leading-none z-10">
-                <span className="text-blue-500 text-[9px]">PROGRESS</span>
-                <span className="text-blue-400 font-bold">{progressPercentage}%</span>
+            {/* Simple Progress Bar Section */}
+            <div className="flex items-center gap-4 flex-1 px-4">
+                <div className="flex flex-col flex-1 gap-1">
+                    <div className="flex justify-between items-end">
+                        <span className="text-[10px] text-slate-400 font-bold tracking-wider">BATCH PROGRESS</span>
+                        <span className="text-[10px] text-emerald-400 font-bold">{totalProcessed} / {totalVariationsScheduled} JOBS</span>
+                    </div>
+                    <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                        <div 
+                            className="h-full bg-emerald-500 transition-all duration-300"
+                            style={{ width: `${progressPercentage}%` }}
+                        />
+                    </div>
+                </div>
             </div>
 
-            <div className="w-px h-6 bg-slate-700 z-10" />
-            <div className="flex flex-col items-center leading-none z-10">
-                <span className="text-slate-500 text-[9px]">ESTIMATED TIME</span>
-                <span className="text-amber-400 font-bold flex items-center gap-1">
-                    <Clock size={10} />
-                    {activeJobs.length > 0 ? formatTime(estimatedRemainingMs) : '00:00'}
-                </span>
-            </div>
             <div className="w-px h-6 bg-slate-700 z-10" />
             
             {/* Status Section */}
-            <div className="flex flex-col px-4 flex-1 min-w-[250px] z-10">
+            <div className="flex flex-col px-4 min-w-[200px] z-10">
                  <div className="flex items-center gap-2 mb-0.5">
-                     {isProcessing ? (
+                     {isProcessing || isRestoring || isValidating ? (
                          <Loader2 size={12} className="animate-spin text-amber-500" />
                      ) : (
                          <Activity size={12} className="text-slate-600" />
                      )}
-                     <span className={`text-[10px] font-bold uppercase tracking-wider ${isProcessing ? 'text-amber-500' : 'text-slate-500'}`}>
+                     <span className={`text-[10px] font-bold uppercase tracking-wider ${isProcessing || isRestoring || isValidating ? 'text-amber-500' : 'text-slate-500'}`}>
                         {currentStatusTitle}
                      </span>
                  </div>
@@ -766,23 +820,29 @@ const App: React.FC = () => {
       {/* Main Layout */}
       <main className="flex-1 flex overflow-hidden">
         
-        {/* Left Sidebar: Input Jobs */}
-        <InputList 
-            jobs={jobQueue}
-            sourceRegistry={sourceRegistry}
-            onAddFiles={handleAddFiles}
-            onRemoveJob={handleRemoveJob}
-            onRemoveJobGroup={handleRemoveJobGroup}
-            onMoveJob={handleMoveJob}
-            onZoom={handleZoom}
-        />
+        {/* Left Sidebar: 20vw */}
+        <div className="w-[20vw] shrink-0 h-full border-r border-slate-800 bg-slate-950">
+            <Sidebar 
+              jobs={jobQueue}
+              validationQueue={validationQueue}
+              sourceRegistry={sourceRegistry}
+              failedItems={failedItems}
+              selectedSourceIds={selectedSourceIds}
+              onToggleSource={handleToggleSourceFilter}
+              onDeselectAll={() => setSelectedSourceIds(new Set())}
+              onRetry={handleRetry}
+              onDeleteFailed={handleDeleteFailed}
+              onDeleteJob={handleRemoveJob}
+              onDeleteSource={handleDeleteSource}
+            />
+        </div>
 
-        {/* Center: Gallery */}
-        <div className="flex-1 bg-slate-950 flex flex-col min-w-0">
+        {/* Right Gallery: 80vw */}
+        <div className="w-[80vw] bg-slate-950 flex flex-col min-w-0 h-full">
            {/* Info Bar */}
-           <div className="h-10 border-b border-slate-800 bg-slate-900 flex items-center px-4 justify-between text-xs text-slate-500">
+           <div className="h-10 border-b border-slate-800 bg-slate-900 flex items-center px-4 justify-between text-xs text-slate-500 shrink-0">
                <span>
-                  Queue: {activeJobs.length} jobs
+                  Showing {displayImages.length} results {selectedSourceIds.size > 0 ? `(Filtered by ${selectedSourceIds.size} sources)` : ''}
                </span>
                <div className="flex gap-4">
                    {generatedImages.length > 0 && (
@@ -791,72 +851,82 @@ const App: React.FC = () => {
                         className="flex items-center gap-2 px-3 py-0.5 bg-slate-800 hover:bg-red-900/30 text-slate-400 hover:text-red-400 border border-transparent hover:border-red-900/50 rounded transition-all"
                         type="button"
                        >
-                           <Trash2 size={12} /> Delete All Finished Jobs
+                           <Trash2 size={12} /> Delete All Results
                        </button>
                    )}
                    <span>
-                      Generated: {generatedImages.length}
+                      Total Generated: {generatedImages.length}
                    </span>
                </div>
            </div>
            
            {/* Grid */}
-           <div className="flex-1 overflow-y-auto p-6">
-                {generatedImages.length === 0 ? (
+           <div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-slate-950">
+                {displayImages.length === 0 ? (
                     <div className="h-full flex flex-col items-center justify-center text-slate-700">
                         <div className="w-24 h-24 rounded-full border-4 border-slate-800 flex items-center justify-center mb-4">
-                            <Plus size={48} className="opacity-20" />
+                            {selectedSourceIds.size > 0 ? (
+                                <Search size={48} className="opacity-20" />
+                            ) : (
+                                <Plus size={48} className="opacity-20" />
+                            )}
                         </div>
-                        <p>Generated artworks will appear here.</p>
-                        <p className="text-xs mt-2 text-slate-600">Drag images anywhere to add them.</p>
+                        <p>{selectedSourceIds.size > 0 ? "No images found for selected filters." : "Generated artworks will appear here."}</p>
+                        {selectedSourceIds.size === 0 && <p className="text-xs mt-2 text-slate-600">Drag images anywhere to add them.</p>}
                     </div>
                 ) : (
-                    <div className="columns-2 md:columns-3 lg:columns-4 gap-4 space-y-4 pb-20">
-                        {generatedImages.map(img => (
+                    <div className="flex flex-wrap gap-4 pb-20 justify-start align-top">
+                        {displayImages.map(img => (
                             <div 
                                 key={img.id} 
-                                className="break-inside-avoid group relative bg-slate-900 rounded-lg overflow-hidden border border-slate-800 shadow-md hover:shadow-emerald-500/10 transition-all cursor-zoom-in"
-                                style={{ maxHeight: '40vh' }}
+                                className="group relative bg-slate-900 rounded-lg overflow-hidden border border-slate-800 shadow-md hover:shadow-emerald-500/10 transition-all flex items-center justify-center"
+                                style={{ flexGrow: 0 }}
                             >
-                                <img 
-                                    src={img.url} 
-                                    alt="generated" 
-                                    className="w-full h-full object-cover block"
-                                    style={{ maxHeight: '40vh' }}
-                                    loading="lazy"
-                                    onClick={() => setViewedImage(img)}
-                                />
-                                
-                                {/* Overlay Details */}
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity p-4 flex flex-col justify-end pointer-events-none">
-                                    <p className="text-[10px] text-white font-bold mb-0.5">{img.originalFilename}</p>
-                                    <p className="text-[9px] text-slate-400 line-clamp-1 mb-2">{img.optionsUsed}</p>
-                                    <p className="text-[9px] text-emerald-500 font-mono">Click to zoom</p>
-                                </div>
+                                <div className="relative" style={{ maxWidth: '400px', maxHeight: '400px' }}>
+                                    <img 
+                                        src={img.url} 
+                                        alt="generated" 
+                                        className="max-w-[400px] max-h-[400px] w-auto h-auto object-contain cursor-zoom-in"
+                                        loading="lazy"
+                                        onClick={() => setViewedImage(img)}
+                                    />
+                                    
+                                    {/* Repeat Button (Always visible on hover) */}
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); handleRepeatJob(img); }}
+                                        className="absolute top-2 left-2 p-2 bg-black/60 hover:bg-emerald-600 text-white rounded opacity-0 group-hover:opacity-100 transition-all z-20 pointer-events-auto shadow-lg"
+                                        title="Repeat this specific job configuration"
+                                    >
+                                        <RefreshCw size={16} />
+                                    </button>
 
-                                {/* Delete Button */}
-                                <button 
-                                    onClick={(e) => { e.stopPropagation(); handleDeleteGalleryItem(img.id); }}
-                                    className="absolute top-2 right-2 p-1.5 bg-black/60 hover:bg-red-500 text-white rounded opacity-0 group-hover:opacity-100 transition-all z-10 pointer-events-auto"
-                                    title="Delete Result"
-                                >
-                                    <Trash2 size={14} />
-                                </button>
+                                    {/* Delete Button */}
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); handleDeleteGalleryItem(img.id); }}
+                                        className="absolute top-2 right-2 p-2 bg-black/60 hover:bg-red-500 text-white rounded opacity-0 group-hover:opacity-100 transition-all z-20 pointer-events-auto shadow-lg"
+                                        title="Delete Result"
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
+
+                                    {/* Overlay Details */}
+                                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/80 to-transparent p-4 pt-12 flex flex-col justify-end pointer-events-none transition-opacity opacity-0 group-hover:opacity-100">
+                                        <p className="text-sm text-white font-bold mb-1 truncate">{img.originalFilename}</p>
+                                        <div className="flex flex-wrap gap-1 mb-2 max-h-12 overflow-hidden">
+                                            {img.optionsUsed.split(', ').map((opt, i) => (
+                                                <span key={i} className="text-[10px] bg-white/10 px-1.5 py-0.5 rounded text-slate-300 border border-white/5">
+                                                    {opt}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         ))}
                     </div>
                 )}
            </div>
         </div>
-
-        {/* Right Sidebar: Failures */}
-        <FailedList 
-            failedItems={failedItems}
-            onRetry={handleRetry}
-            onRetryAll={handleRetryAll}
-            onDelete={handleDeleteFailed}
-            onZoom={handleZoom}
-        />
       </main>
 
       {/* Dialogs */}

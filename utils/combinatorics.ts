@@ -1,66 +1,209 @@
 import { AppOptions } from "../types";
+import { DND_CLASSES } from "../constants";
+
+/**
+ * Calculates the number of permutations without generating the objects.
+ * Useful for UI counters.
+ */
+export const countPermutations = (options: AppOptions): number => {
+    // 1. Calculate Base Permutations (Standard Options)
+    const allKeys = Object.keys(options) as (keyof AppOptions)[];
+    const baseKeys = allKeys.filter(key => 
+        key !== 'combinedGroups' && 
+        Array.isArray(options[key]) && 
+        !key.startsWith('dnd')
+    );
+
+    let baseCount = 1;
+    baseKeys.forEach(key => {
+        const val = options[key] as string[];
+        if (val.length > 0) {
+            if (options.combinedGroups.includes(key)) {
+                baseCount *= 1;
+            } else {
+                baseCount *= val.length;
+            }
+        }
+    });
+
+    // 2. Calculate D&D Permutations (Union of Classes)
+    let dndCount = 0;
+    
+    DND_CLASSES.forEach(cls => {
+        const outfitKey = `dnd${cls}Outfit` as keyof AppOptions;
+        const weaponKey = `dnd${cls}Weapon` as keyof AppOptions;
+        
+        const outfits = options[outfitKey] as string[] || [];
+        const weapons = options[weaponKey] as string[] || [];
+        
+        if (outfits.length === 0 && weapons.length === 0) return;
+
+        let clsOutfitCount = 0;
+        if (outfits.length > 0) {
+            clsOutfitCount = options.combinedGroups.includes(outfitKey) ? 1 : outfits.length;
+        }
+
+        let clsWeaponCount = 0;
+        if (weapons.length > 0) {
+            clsWeaponCount = options.combinedGroups.includes(weaponKey) ? 1 : weapons.length;
+        }
+
+        // Logic: if only outfits selected -> count = outfits
+        // if only weapons selected -> count = weapons
+        // if both -> count = outfits * weapons
+        let clsTotal = 0;
+        if (clsOutfitCount > 0 && clsWeaponCount > 0) {
+            clsTotal = clsOutfitCount * clsWeaponCount;
+        } else if (clsOutfitCount > 0) {
+            clsTotal = clsOutfitCount;
+        } else if (clsWeaponCount > 0) {
+            clsTotal = clsWeaponCount;
+        }
+
+        dndCount += clsTotal;
+    });
+
+    if (dndCount === 0) dndCount = 1;
+
+    return baseCount * dndCount;
+};
 
 /**
  * Generates a Cartesian product of all selected options.
  * Returns an array of objects, where each object represents a unique combination.
  */
 export const generatePermutations = (options: AppOptions) => {
-  // Only iterate over array properties that are meant for permutations
-  // Filter out 'combinedGroups' as it's a control array, not a feature array
-  const keys = Object.keys(options).filter(key => 
-    key !== 'combinedGroups' && Array.isArray(options[key as keyof AppOptions])
-  ) as (keyof AppOptions)[];
+  // 1. Identify all active keys in the options object
+  const allKeys = Object.keys(options) as (keyof AppOptions)[];
   
-  // Get the arrays of selected values for each category
-  const arrays = keys.map(key => {
-    const val = options[key];
-    
-    // Safety check
-    if (!Array.isArray(val) || val.length === 0) {
-        return [undefined];
-    }
+  // 2. Separate keys
+  // Base keys: Arrays, not combinedGroups control, and NOT starting with 'dnd'
+  const baseKeys = allKeys.filter(key => 
+    key !== 'combinedGroups' && 
+    Array.isArray(options[key]) && 
+    !key.startsWith('dnd')
+  );
 
-    // COMBINATION LOGIC:
-    // If this category is in 'combinedGroups', we treat all selected items as a single "item" 
-    // to be used in one image, rather than permuting through them.
-    if (options.combinedGroups.includes(key)) {
-        const joined = val.join(' + '); // Join with + to indicate combination in prompt
-        return [joined];
-    }
+  // 3. Generate Base Processing List
+  const baseProcessingList: { key: string; values: any[] }[] = [];
+  
+  baseKeys.forEach(key => {
+      const val = options[key] as string[];
+      if (val.length === 0) return; // Skip empty categories
 
-    // Normal behavior: return the array to generate permutations
-    return val;
+      if (options.combinedGroups.includes(key)) {
+          baseProcessingList.push({ key, values: [val.join(' + ')] });
+      } else {
+          baseProcessingList.push({ key, values: val });
+      }
   });
 
   // Helper to calculate cartesian product
   const cartesian = (a: any[], b: any[]) => [].concat(...a.map((d: any) => b.map((e: any) => [].concat(d, e))));
   
-  // Reduce to generate all combinations
-  const product = arrays.reduce((a, b) => cartesian(a, b));
-
-  // If there's only one category or one item, cartesian might handle it differently, 
-  // ensure we have an array of arrays.
-  const combinations = (Array.isArray(product[0]) ? product : product.map((p: any) => [p])) as any[][];
-
-  return combinations.map(combo => {
-    const comboObj: any = {};
-    
-    // Copy base non-array options (like booleans)
-    if (options.replaceBackground) {
-        comboObj.replaceBackground = true;
-    }
-    if (options.removeCharacters) {
-        comboObj.removeCharacters = true;
-    }
-
-    keys.forEach((key, index) => {
-      // Only set if value is not undefined
-      if (combo[index] !== undefined) {
-          comboObj[key] = combo[index];
+  // 4. Generate Base Combinations
+  let baseCombinations: any[] = [{}];
+  
+  if (baseProcessingList.length > 0) {
+      const arraysToPermute = baseProcessingList.map(p => p.values);
+      let product: any[] = arraysToPermute[0];
+      if (arraysToPermute.length > 1) {
+          product = arraysToPermute.reduce((a, b) => cartesian(a, b));
       }
-    });
-    return comboObj;
+      
+      // Ensure array of arrays
+      const rawCombinations = (Array.isArray(product[0]) ? product : product.map((p: any) => [p])) as any[][];
+      
+      baseCombinations = rawCombinations.map(vals => {
+          const obj: any = {};
+          vals.forEach((v, i) => {
+              obj[baseProcessingList[i].key] = v;
+          });
+          return obj;
+      });
+  }
+
+  // 5. Generate D&D Class Combinations (Union Logic)
+  let dndCombinations: any[] = [];
+  
+  DND_CLASSES.forEach(cls => {
+      const outfitKey = `dnd${cls}Outfit` as keyof AppOptions;
+      const weaponKey = `dnd${cls}Weapon` as keyof AppOptions;
+      
+      const rawOutfits = options[outfitKey] as string[] || [];
+      const rawWeapons = options[weaponKey] as string[] || [];
+      
+      if (rawOutfits.length === 0 && rawWeapons.length === 0) return;
+
+      // Prepare values for this class
+      let outfits: string[] = [];
+      if (rawOutfits.length > 0) {
+          if (options.combinedGroups.includes(outfitKey)) {
+              outfits = [rawOutfits.join(' + ')];
+          } else {
+              outfits = rawOutfits;
+          }
+      }
+
+      let weapons: string[] = [];
+      if (rawWeapons.length > 0) {
+          if (options.combinedGroups.includes(weaponKey)) {
+              weapons = [rawWeapons.join(' + ')];
+          } else {
+              weapons = rawWeapons;
+          }
+      }
+
+      // Generate per-class permutations
+      if (outfits.length > 0 && weapons.length > 0) {
+          // Cartesian of Outfit x Weapon
+          outfits.forEach(o => {
+              weapons.forEach(w => {
+                  dndCombinations.push({
+                      [outfitKey]: o,
+                      [weaponKey]: w
+                  });
+              });
+          });
+      } else if (outfits.length > 0) {
+          // Only Outfits
+          outfits.forEach(o => {
+              dndCombinations.push({ [outfitKey]: o });
+          });
+      } else if (weapons.length > 0) {
+          // Only Weapons
+          weapons.forEach(w => {
+              dndCombinations.push({ [weaponKey]: w });
+          });
+      }
   });
+
+  if (dndCombinations.length === 0) {
+      dndCombinations.push({}); // Ensure at least one empty dnd combo exists to multiply with base
+  }
+
+  // 6. Cross Product Base x D&D
+  // We manually cross them because 'cartesian' helper expects arrays of values, 
+  // here we have arrays of objects.
+  
+  const finalCombinations: any[] = [];
+  
+  baseCombinations.forEach(base => {
+      dndCombinations.forEach(dnd => {
+          // Merge logic: spread base, spread dnd, and add flags
+          const combo = {
+              ...base,
+              ...dnd
+          };
+          
+          if (options.replaceBackground) combo.replaceBackground = true;
+          if (options.removeCharacters) combo.removeCharacters = true;
+          
+          finalCombinations.push(combo);
+      });
+  });
+
+  return finalCombinations;
 };
 
 const shouldInclude = (value: string | undefined): boolean => {
@@ -80,30 +223,52 @@ export const buildPromptFromCombo = (combo: any): string => {
       if (shouldInclude(combo.gender)) details.push(`- Gender: ${combo.gender}`);
       if (shouldInclude(combo.age)) details.push(`- Age: ${combo.age}`);
       if (shouldInclude(combo.bodyType)) details.push(`- Body Type: ${combo.bodyType}`);
+      if (shouldInclude(combo.breastSize)) details.push(`- Breast Size: ${combo.breastSize}`);
       if (shouldInclude(combo.skin)) details.push(`- Skin: ${combo.skin}`);
       if (shouldInclude(combo.hair)) details.push(`- Hair: ${combo.hair}`);
       if (shouldInclude(combo.eyeColor)) details.push(`- Eye Color: ${combo.eyeColor}`);
       if (shouldInclude(combo.emotions)) details.push(`- Emotion/Expression: ${combo.emotions}`);
+      
       if (shouldInclude(combo.clothes)) {
-          details.push(`- Clothes/Attire: ${combo.clothes}`);
           // Check for implied nudity keywords to trigger safety instruction
           // Using lowercase check for robustness against combined strings "Option + Option"
           const clothesLower = String(combo.clothes).toLowerCase();
-          if (
+          const isImpliedNude = 
               clothesLower.includes("nude") || 
               clothesLower.includes("body paint") || 
               clothesLower.includes("strategic") ||
-              clothesLower.includes("sheet") || 
-              clothesLower.includes("chained")
-          ) {
-              requiresNudityCoverage = true;
+              clothesLower.includes("sheet") ||
+              clothesLower.includes("towel") ||
+              clothesLower.includes("bound");
+          
+          if (isImpliedNude) {
+             requiresNudityCoverage = true;
+             // Use "Appearance" or "Concept" instead of "Clothes" to prevent AI from forcing fabrics
+             details.push(`- Body Concept/Attire: ${combo.clothes} (DO NOT ADD EXTRA CLOTHING)`);
+          } else {
+             details.push(`- Clothes/Attire: ${combo.clothes}`);
           }
       }
+
       if (shouldInclude(combo.shoes)) details.push(`- Shoes: ${combo.shoes}`);
       if (shouldInclude(combo.items)) details.push(`- Item(s) equipped/holding: ${combo.items}`);
       if (shouldInclude(combo.decorations)) details.push(`- Body Decorations/Features: ${combo.decorations}`);
       if (shouldInclude(combo.skinConditions)) details.push(`- Skin Condition/Surface: ${combo.skinConditions}`);
       if (shouldInclude(combo.actions)) details.push(`- Action/Activity: ${combo.actions}`);
+
+      // D&D Specifics - Dynamic check
+      // We iterate all possible D&D keys present in the combo
+      Object.keys(combo).forEach(key => {
+          if (key.match(/^dnd.*Outfit$/) && shouldInclude(combo[key])) {
+              // Extract class name from key dnd[Class]Outfit
+              const className = key.replace('dnd', '').replace('Outfit', '');
+              details.push(`- Class ${className} Outfit: ${combo[key]}`);
+          }
+          if (key.match(/^dnd.*Weapon$/) && shouldInclude(combo[key])) {
+              const className = key.replace('dnd', '').replace('Weapon', '');
+              details.push(`- Class ${className} Weapon: ${combo[key]}`);
+          }
+      });
   }
   
   const setting: string[] = [];
@@ -154,13 +319,19 @@ export const buildPromptFromCombo = (combo: any): string => {
   }
 
   const coverageInstruction = requiresNudityCoverage 
-    ? "7. IMPLIED NUDITY HANDLING: For the 'Nude (Implied)', 'Chained' or artistic body paint options, maintain an artistic, tasteful look. CRITICAL: Provide minimal coverage to private areas using small elements like a single leaf, a strategically placed object, deep shadow, flowing hair, or flower petals. The nudity should be implied but not explicitly graphic."
+    ? "7. CONTENT SAFETY & AESTHETICS: The user has requested an artistic concept involving nudity or implied nudity (e.g. body paint, shadows, etc). DO NOT add clothes if the option specifies 'Nude' or 'Body Paint'. HOWEVER, you MUST maintain a 'Safety' standard by using artistic techniques: use chiaroscuro (heavy shadows), strategic placement of long hair, environmental elements (steam, fog, leaves), or camera angles to obscure genitals and nipples naturally. The result should be a high-quality, tasteful, artistic masterpiece, not pornography."
     : "";
 
   return `
-    Colorize this line art.
-    Turn it into a high-resolution, 4K, photo-realistic photograph (unless Art Style specifies otherwise).
-    It must look like a real picture or high-end render.
+    You are a professional concept artist and colorist.
+    Task: Transform the provided line art into a hyper-realistic, 8K resolution masterpiece.
+    
+    VISUAL STYLE:
+    - Hyper-realistic textures (skin pores, imperfections, fabric weave, material physics).
+    - Cinematic lighting with volumetric atmosphere.
+    - Depth of field and realistic camera lens effects.
+    - High dynamic range and rich color grading.
+    - If the Art Style option is set, blend that style with photorealistic rendering (e.g., "Photorealistic Anime").
     
     Character Details:
     ${details.length > 0 ? details.join('\n    ') : 'N/A (Landscape Mode or As-Is)'}
@@ -173,14 +344,14 @@ export const buildPromptFromCombo = (combo: any): string => {
     
     IMPORTANT INSTRUCTIONS:
     1. Apply the 'Species' setting (if specified) to the main humanoid character in the line art.
-    2. Ensure strict logical consistency between the Technology/Environment and the Character's attire. 
-    3. Make sure people in the generated images wear the proper clothes for their technology and the environment, including the clothing option set for the character.
-    4. Maintain the original pose and gesture of the character(s) strictly.
+    2. Ensure strict logical consistency between the Technology/Environment and the Character's attire/class. 
+    3. Make sure people in the generated images wear the proper clothes for their technology and the environment, unless the Attire option specifies Nudity/Body Paint.
+    4. Maintain the original pose and gesture of the character(s) strictly. Do not add new limbs.
     ${modeInstruction}
     6. If an option is not set (missing from the lists above), do not use it or infer it arbitrarily; use the original image content as the guide for that aspect.
     7. IMPORTANT: Preserve all facial details, expressions, and features from the original line art. Do not distort the face.
     ${coverageInstruction}
     
-    High quality, detailed, masterpiece.
+    Output a single, high-quality, photorealistic image.
   `.trim();
 };

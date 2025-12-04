@@ -14,6 +14,7 @@ export interface AppOptions {
   gender: string[];
   age: string[];
   bodyType: string[];
+  breastSize: string[]; // New field
   skin: string[];
   hair: string[];
   eyeColor: string[];
@@ -36,6 +37,24 @@ export interface AppOptions {
   decorations: string[];
   skinConditions: string[]; // New field for mud, blood, etc.
   
+  // D&D Class Options
+  dndFighterOutfit: string[];
+  dndFighterWeapon: string[];
+  dndClericOutfit: string[];
+  dndClericWeapon: string[];
+  dndPaladinOutfit: string[];
+  dndPaladinWeapon: string[];
+  dndRogueOutfit: string[];
+  dndRogueWeapon: string[];
+  dndWizardOutfit: string[];
+  dndWizardWeapon: string[];
+  dndMonkOutfit: string[];
+  dndMonkWeapon: string[];
+  dndBarbarianOutfit: string[];
+  dndBarbarianWeapon: string[];
+  dndDruidOutfit: string[];
+  dndDruidWeapon: string[];
+
   replaceBackground: boolean;
   removeCharacters: boolean;
   
@@ -50,11 +69,15 @@ export interface GlobalConfig {
   itemGroups: Record<string, string[]>;
   decorationGroups: Record<string, string[]>;
   attireGroups: Record<string, string[]>;
-  skinConditionGroups: Record<string, string[]>; // New config group
+  skinConditionGroups: Record<string, string[]>;
+  // D&D Configuration
+  dndOutfits: Record<string, string[]>;
+  dndWeapons: Record<string, string[]>;
   lists: {
       gender: string[];
       age: string[];
       bodyType: string[];
+      breastSize: string[]; // New field
       skin: string[];
       hair: string[];
       eyeColor: string[];
@@ -89,6 +112,7 @@ export interface SourceImage {
     type: string;
     previewUrl: string;
     analysis?: ImageAnalysis;
+    status?: 'VALIDATING' | 'READY';
 }
 
 // Job (Execution Unit)
@@ -122,6 +146,7 @@ export interface GeneratedImage {
   optionsUsed: string;
   originalFilename: string;
   timestamp: number;
+  optionsSnapshot: AppOptions;
 }
 
 export interface FailedItem {
@@ -135,10 +160,15 @@ export interface FailedItem {
   retryCount: number;
 }
 
+export interface ValidationJob {
+    id: string;
+    sourceImageId: string;
+    file: File;
+    optionsSnapshot: AppOptions;
+}
+
 export interface InputImage {
     // Legacy support for DB types if needed, but primarily mapped to SourceImage + Jobs now
     id: string;
     status: string;
-    // ... other fields kept optional for compatibility if strictly needed by old code, 
-    // but we are migrating away from this being the primary queue type.
 }

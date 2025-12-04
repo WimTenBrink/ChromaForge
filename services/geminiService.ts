@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
+import { GoogleGenAI, Type, GenerateContentResponse, HarmCategory, HarmBlockThreshold } from "@google/genai";
 import { log } from "./logger";
 import { ImageAnalysis } from "../types";
 
@@ -139,7 +139,10 @@ const retryOperation = async <T>(operation: () => Promise<T>, maxRetries: number
             
             if (isRetryable && i < maxRetries - 1) {
                 const delay = baseDelay * Math.pow(2, i); // Exponential backoff
-                log('WARN', `API Busy/Timeout (${statusCode || 'N/A'}). Retrying...`, { attempt: i + 1, delay });
+                // Simplified log message
+                if (i > 0 || statusCode === 429) {
+                     log('INFO', `API Busy/Timeout. Retrying in ${delay}ms (Attempt ${i + 1})...`, {});
+                }
                 await new Promise(resolve => setTimeout(resolve, delay));
                 continue;
             }
@@ -191,7 +194,15 @@ export const processImage = async (file: File | string, prompt: string, mimeType
       config: {
           imageConfig: {
               imageSize: '4K',
-          }
+          },
+          // Set all safety thresholds to BLOCK_NONE to be as tolerant as possible
+          safetySettings: [
+            { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+            { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+            { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+            { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+            { category: HarmCategory.HARM_CATEGORY_CIVIC_INTEGRITY, threshold: HarmBlockThreshold.BLOCK_NONE },
+          ]
       }
     };
 
@@ -236,7 +247,7 @@ export const processImage = async (file: File | string, prompt: string, mimeType
             usageMetadata: response.usageMetadata
         };
         
-        log('ERROR', 'No candidates in response', { response: safeResponseLog });
+        log('WARN', 'No candidates in response', { response: safeResponseLog }); // Warn instead of Error to avoid console spam
         throw new Error(msg);
     }
 
@@ -272,10 +283,10 @@ export const processImage = async (file: File | string, prompt: string, mimeType
              if (unsafe.length > 0) {
                  msg += `. Safety Flags: ${unsafe.map(r => `${r.category}=${r.probability}`).join(', ')}`;
              } else {
-                 msg = "Safety Block: The model refused to generate this image due to safety guidelines. Please adjust your prompt (avoid nudity, real people, or violence).";
+                 msg = "PROHIBITED_CONTENT: The model refused to generate this image due to safety guidelines.";
              }
         } else if (reason === 'PROHIBITED_CONTENT' || reason === 'IMAGE_SAFETY') {
-             msg = `Safety Block: The model flagged the content as ${reason}. Try removing sensitive terms or reducing prompt complexity.`;
+             msg = `PROHIBITED_CONTENT: The model flagged the content as ${reason}. Try removing sensitive terms or reducing prompt complexity.`;
         }
 
         if (textResponse) msg += `. Message: ${textResponse.slice(0, 200)}`;
@@ -289,7 +300,7 @@ export const processImage = async (file: File | string, prompt: string, mimeType
             usage: response.usageMetadata
         };
         
-        log('ERROR', 'No image data in response', details);
+        log('WARN', 'No image data in response', details); // Warn to avoid console spam
         throw new Error(msg);
     }
 
@@ -298,9 +309,69 @@ export const processImage = async (file: File | string, prompt: string, mimeType
 
   } catch (error: any) {
     const formatted = formatErrorForLog(error);
-    log('ERROR', 'Gemini API Error', formatted);
+    // Use WARN instead of ERROR for logic-handled errors to prevent browser console pollution
+    // unless it's a critical system error
+    log('WARN', 'Gemini API Error', formatted);
     throw ensureError(error);
   }
+};
+
+export const validateFileName = async (file: File | string, mimeTypeInput?: string): Promise<string> => {
+    const apiKey = process.env.API_KEY;
+    if (!apiKey) throw new Error("API Key not found");
+  
+    const ai = new GoogleGenAI({ apiKey });
+    
+    let base64Image = '';
+    let mimeType = mimeTypeInput || 'image/jpeg';
+  
+    if (file instanceof File) {
+        base64Image = await fileToBase64(file);
+        mimeType = file.type;
+    } else {
+        base64Image = file;
+    }
+  
+    const prompt = `
+      Analyze this image and create a short, descriptive filename for it.
+      Rules:
+      1. Max 5 words.
+      2. Use only alphanumeric characters, dashes, and underscores.
+      3. No file extension.
+      4. Be specific about the subject matter (e.g., "elf-warrior-forest", "cyberpunk-street-night").
+    `;
+  
+    try {
+        const response = await retryOperation<GenerateContentResponse>(() => 
+          withTimeout(ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: {
+                parts: [
+                    { inlineData: { mimeType, data: base64Image } },
+                    { text: prompt }
+                ]
+            },
+            config: {
+                responseMimeType: 'text/plain',
+                safetySettings: [
+                    { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+                    { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+                    { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+                    { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+                ]
+            }
+        }), 30000, "Image Validation")
+      );
+  
+        const text = response.text?.trim() || "untitled_image";
+        // Clean up text
+        const cleanName = text.replace(/[^a-zA-Z0-9-_]/g, '').slice(0, 50);
+        return cleanName || "image";
+
+    } catch (error) {
+        log('WARN', 'Validation Request Error', formatErrorForLog(error));
+        return "processed_image";
+    }
 };
 
 export const analyzeImage = async (file: File | string, mimeTypeInput?: string): Promise<ImageAnalysis> => {
@@ -346,7 +417,13 @@ export const analyzeImage = async (file: File | string, mimeTypeInput?: string):
                       objects: { type: Type.ARRAY, items: { type: Type.STRING } },
                       safety: { type: Type.STRING }
                   }
-              }
+              },
+              safetySettings: [
+                { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+                { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+                { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+                { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+            ]
           }
       }), 45000, "Image Analysis")
     );
@@ -401,7 +478,7 @@ ${objects.length > 0 ? objects.map((obj: string) => `- ${obj}`).join('\n') : 'No
           markdownContent
       };
   } catch (error) {
-      log('ERROR', 'Analysis Request Error', formatErrorForLog(error));
+      log('WARN', 'Analysis Request Error', formatErrorForLog(error));
       throw ensureError(error);
   }
 };
