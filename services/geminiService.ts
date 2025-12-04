@@ -339,6 +339,8 @@ export const validateFileName = async (file: File | string, mimeTypeInput?: stri
       2. Use only alphanumeric characters, dashes, and underscores.
       3. No file extension.
       4. Be specific about the subject matter (e.g., "elf-warrior-forest", "cyberpunk-street-night").
+      5. STRICTLY FORBIDDEN: Do not include words like "line art", "lineart", "sketch", "drawing", "illustration", "image", "picture". 
+      6. Output ONLY the filename.
     `;
   
     try {
@@ -365,8 +367,13 @@ export const validateFileName = async (file: File | string, mimeTypeInput?: stri
   
         const text = response.text?.trim() || "untitled_image";
         // Clean up text
-        const cleanName = text.replace(/[^a-zA-Z0-9-_]/g, '').slice(0, 50);
-        return cleanName || "image";
+        let cleanName = text.replace(/[^a-zA-Z0-9-_]/g, '');
+        // Safety replace for words we asked not to include, just in case
+        cleanName = cleanName.replace(/line[-_\s]?art/gi, '').replace(/sketch/gi, '').replace(/drawing/gi, '');
+        // Clean up double dashes or leading/trailing dashes resulting from removal
+        cleanName = cleanName.replace(/[-_]{2,}/g, '-').replace(/^[-_]+|[-_]+$/g, '');
+        
+        return cleanName.slice(0, 50) || "processed_image";
 
     } catch (error) {
         log('WARN', 'Validation Request Error', formatErrorForLog(error));

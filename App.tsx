@@ -5,6 +5,7 @@ import OptionsDialog from './components/OptionsDialog';
 import ConsoleDialog from './components/ConsoleDialog';
 import ImageDetailDialog from './components/ImageDetailDialog';
 import ManualDialog from './components/ManualDialog';
+import JobDetailDialog from './components/JobDetailDialog';
 import { AppOptions, Job, GeneratedImage, FailedItem, ImageAnalysis, GlobalConfig, SourceImage, ValidationJob } from './types';
 import { DEFAULT_OPTIONS, MAX_CONCURRENT_JOBS } from './constants';
 import { generatePermutations, buildPromptFromCombo } from './utils/combinatorics';
@@ -39,6 +40,7 @@ const App: React.FC = () => {
   
   // View Viewer (Zoom)
   const [viewedImage, setViewedImage] = useState<GeneratedImage | { url: string, title: string, metadata: string } | null>(null);
+  const [viewedJob, setViewedJob] = useState<Job | FailedItem | null>(null);
   
   const [apiKeyReady, setApiKeyReady] = useState(false);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
@@ -108,6 +110,42 @@ const App: React.FC = () => {
       
       return () => clearTimeout(timer);
   }, [jobQueue, sourceRegistry, isRestoring]);
+
+  // --- Garbage Collector (Memory Management) ---
+  // Periodically checks for orphans and removes them to free up memory
+  useEffect(() => {
+      if (isRestoring) return;
+      
+      const sweeper = setInterval(() => {
+          setSourceRegistry(prev => {
+              const next = new Map(prev);
+              let changed = false;
+              
+              for (const [id, src] of prev.entries()) {
+                  // Check if this source ID is referenced anywhere
+                  const inValidation = validationQueue.some(v => v.sourceImageId === id);
+                  const inJobs = jobQueue.some(j => j.sourceImageId === id);
+                  const inFailed = failedItems.some(f => f.sourceImageId === id);
+                  const inGallery = generatedImages.some(g => g.sourceImageId === id);
+
+                  // If source is not being processed, not waiting, and has no results
+                  if (!inValidation && !inJobs && !inFailed && !inGallery) {
+                      // MEMORY CLEANUP: Revoke object URL
+                      if (src.previewUrl) {
+                          URL.revokeObjectURL(src.previewUrl);
+                      }
+                      next.delete(id);
+                      changed = true;
+                      log('INFO', 'Garbage Collector cleaned orphan source', { id: src.id, name: src.name });
+                  }
+              }
+              return changed ? next : prev;
+          });
+      }, 5000); // Run every 5 seconds
+
+      return () => clearInterval(sweeper);
+  }, [validationQueue, jobQueue, failedItems, generatedImages, isRestoring]);
+
 
   // --- Initialization ---
   useEffect(() => {
@@ -201,7 +239,7 @@ const App: React.FC = () => {
                       const previewUrl = URL.createObjectURL(blob);
                       
                       newRegistry.set(id, {
-                          ...(src as object),
+                          ...(src as any),
                           file: null,
                           previewUrl
                       });
@@ -582,6 +620,11 @@ const App: React.FC = () => {
       setFailedItems(prev => prev.filter(f => f.id !== id));
   };
   
+  const handleDeleteAllBlocked = (items: FailedItem[]) => {
+      const idsToDelete = new Set(items.map(i => i.id));
+      setFailedItems(prev => prev.filter(f => !idsToDelete.has(f.id)));
+  };
+  
   const handleDeleteGalleryItem = (id: string) => {
       setGeneratedImages(prev => prev.filter(img => img.id !== id));
   };
@@ -602,6 +645,12 @@ const App: React.FC = () => {
   };
 
   const handleDeleteSource = (id: string) => {
+      // Cleanup Object URL for memory
+      const source = sourceRegistry.get(id);
+      if (source && source.previewUrl) {
+          URL.revokeObjectURL(source.previewUrl);
+      }
+
       // Remove source
       setSourceRegistry(prev => {
           const next = new Map(prev);
@@ -884,6 +933,8 @@ const App: React.FC = () => {
               onDeleteFailed={handleDeleteFailed}
               onDeleteJob={handleRemoveJob}
               onDeleteSource={handleDeleteSource}
+              onDeleteAllBlocked={handleDeleteAllBlocked}
+              onViewJob={setViewedJob}
             />
         </div>
 
@@ -972,7 +1023,7 @@ const App: React.FC = () => {
                         {selectedSourceIds.size === 0 && <p className="text-xs mt-2 text-slate-600">Drag images anywhere to add them.</p>}
                     </div>
                 ) : (
-                    <div className="flex flex-wrap gap-4 pb-20 justify-start align-top">
+                    <div className="flex flex-wrap gap-4 pb-20 justify-start align-top content-start">
                         {displayImages.map(img => (
                             <div 
                                 key={img.id} 
@@ -1065,11 +1116,17 @@ const App: React.FC = () => {
 
       <ImageDetailDialog 
         image={viewedImage}
+        sourceUrl={viewedImage && 'sourceImageId' in viewedImage ? sourceRegistry.get(viewedImage.sourceImageId)?.previewUrl : undefined}
         onClose={() => setViewedImage(null)}
         onNext={handleNextImage}
         onPrev={handlePrevImage}
         hasNext={viewedImage && 'id' in viewedImage ? generatedImages.findIndex(i => i.id === viewedImage.id) < generatedImages.length - 1 : false}
         hasPrev={viewedImage && 'id' in viewedImage ? generatedImages.findIndex(i => i.id === viewedImage.id) > 0 : false}
+      />
+
+      <JobDetailDialog 
+         job={viewedJob}
+         onClose={() => setViewedJob(null)}
       />
 
     </div>

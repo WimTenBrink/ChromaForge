@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, ZoomIn, ZoomOut, Maximize, Move, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, ZoomIn, ZoomOut, Maximize, Move, ChevronLeft, ChevronRight, Eye, EyeOff } from 'lucide-react';
 import { GeneratedImage } from '../types';
 
 interface ViewableImage {
@@ -13,6 +13,7 @@ interface ViewableImage {
 
 interface Props {
   image: ViewableImage | GeneratedImage | null;
+  sourceUrl?: string;
   onClose: () => void;
   onNext?: () => void;
   onPrev?: () => void;
@@ -20,11 +21,12 @@ interface Props {
   hasPrev?: boolean;
 }
 
-const ImageDetailDialog: React.FC<Props> = ({ image, onClose, onNext, onPrev, hasNext, hasPrev }) => {
+const ImageDetailDialog: React.FC<Props> = ({ image, sourceUrl, onClose, onNext, onPrev, hasNext, hasPrev }) => {
   const [scale, setScale] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [showOriginal, setShowOriginal] = useState(false);
   const imageRef = useRef<HTMLImageElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -44,6 +46,7 @@ const ImageDetailDialog: React.FC<Props> = ({ image, onClose, onNext, onPrev, ha
     if (image) {
       setScale(1);
       setPosition({ x: 0, y: 0 });
+      setShowOriginal(false);
     }
   }, [image]);
 
@@ -100,8 +103,25 @@ const ImageDetailDialog: React.FC<Props> = ({ image, onClose, onNext, onPrev, ha
                 {getMetadata()}
             </span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="flex items-center bg-slate-800 rounded-lg px-2 py-1 mr-4">
+          <div className="flex items-center gap-4">
+            
+            {/* Show Original Toggle */}
+            {sourceUrl && (
+                <label className="flex items-center gap-2 cursor-pointer bg-slate-800 rounded-lg px-3 py-1.5 border border-slate-700 hover:border-emerald-500/50 transition-colors select-none">
+                    <input 
+                        type="checkbox" 
+                        checked={showOriginal} 
+                        onChange={(e) => setShowOriginal(e.target.checked)} 
+                        className="hidden"
+                    />
+                    {showOriginal ? <Eye size={16} className="text-emerald-400" /> : <EyeOff size={16} className="text-slate-400" />}
+                    <span className={`text-xs font-bold ${showOriginal ? 'text-emerald-400' : 'text-slate-400'}`}>
+                        Show Original
+                    </span>
+                </label>
+            )}
+
+            <div className="flex items-center bg-slate-800 rounded-lg px-2 py-1">
                <span className="text-xs text-slate-400 mr-2">
                    {(scale * 100).toFixed(0)}%
                </span>
@@ -109,6 +129,7 @@ const ImageDetailDialog: React.FC<Props> = ({ image, onClose, onNext, onPrev, ha
                <button onClick={() => setScale(1)} className="p-1 hover:text-white text-slate-400"><Maximize size={16}/></button>
                <button onClick={() => setScale(s => Math.min(5, s + 0.25))} className="p-1 hover:text-white text-slate-400"><ZoomIn size={16}/></button>
             </div>
+            
             <button 
                 onClick={onClose} 
                 className="p-2 bg-slate-800 hover:bg-red-900/50 text-slate-400 hover:text-white rounded-lg transition-colors"
@@ -133,6 +154,15 @@ const ImageDetailDialog: React.FC<Props> = ({ image, onClose, onNext, onPrev, ha
                    <Move size={12}/> <span>Drag to pan, Scroll to zoom</span>
                </div>
             </div>
+
+            {/* Source Indicator Overlay */}
+            {showOriginal && (
+                 <div className="absolute top-4 right-4 z-10 pointer-events-none">
+                    <div className="bg-emerald-600/90 text-white px-3 py-1 rounded shadow-lg font-bold text-sm border border-emerald-400/50">
+                        ORIGINAL IMAGE
+                    </div>
+                 </div>
+            )}
 
             {/* Navigation Overlays */}
             {hasPrev && (
@@ -160,7 +190,7 @@ const ImageDetailDialog: React.FC<Props> = ({ image, onClose, onNext, onPrev, ha
             >
                 <img 
                     ref={imageRef}
-                    src={image.url} 
+                    src={showOriginal && sourceUrl ? sourceUrl : image.url} 
                     alt="Detail view" 
                     draggable={false}
                     className="max-w-full max-h-full object-contain shadow-2xl shadow-black" 

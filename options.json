@@ -13,6 +13,9 @@
     "Human/Animal Hybrids": [
       "As-Is (Skip)", "Centaur", "Satyr", "Faun", "Onocentaur", "Hippocamp", "Ipotane", "Minotaur", "Sphinx", "Manticore", "Lamia", "Hecatonchires", "Karakoncolos", "Blemmyes", "Cynocephaly"
     ],
+    "Pulp Fantasy": [
+      "As-Is (Skip)", "Amazon Warrior", "Great Ape (Mangani)", "Lost World Dinosaur", "Pictish Savage", "Serpent Man", "Frost Giant", "Caveman"
+    ],
     "Lord of the Rings": [
       "As-Is (Skip)", "High Elf", "Hobbit", "Uruk-hai", "Wood Elf"
     ],
@@ -36,6 +39,12 @@
     ]
   },
   "environmentGroups": {
+    "Tarzan / Jungle World": [
+        "As-Is (Skip)", "Ancestral Treehouse", "Deep Jungle Canopy", "Elephant Graveyard", "Hidden City of Opar", "Jungle River", "Lost Civilization Ruins", "Misty Rainforest", "Savannah Watering Hole", "Tribal Village", "Vine-Covered Temple"
+    ],
+    "Conan / Hyborian Age": [
+        "As-Is (Skip)", "Aquilonian Palace", "Bazaar of Shadizar", "Cimmerian Highlands (Snowy)", "Crypt of the Sorcerer", "Pictish Wilderness", "Pirate Ship Deck", "Stygian Desert Tomb", "Tavern in Zamora", "Temple of Set", "Tower of the Elephant"
+    ],
     "Dungeons & Dragons": [
         "As-Is (Skip)", "Ancient Ruins", "Bustling Medieval Market", "Dark Dungeon", "Dragon's Lair", "Dwarven Forge", "Elven Tree City", "Enchanted Forest", "Haunted Graveyard", "Magic Academy Library", "Mystical Swamp", "Royal Throne Room", "Tavern Interior", "Underdark Cavern", "Wizard's Tower"
     ],
@@ -82,6 +91,9 @@
       "Druid": ["As-Is (Skip)", "Club", "Scimitar", "Sickle", "Wooden Staff"]
   },
   "itemGroups": {
+    "Pulp Fantasy Weapons": [
+      "As-Is (Skip)", "Atlantean Greatsword", "Battleaxe", "Bone Knife", "Cimmerian Broadsword", "Crude Stone Spear", "Jungle Bow & Arrow", "Obsidian Dagger", "Wooden Club"
+    ],
     "Weapons": [
       "As-Is (Skip)", "Axe", "Blaster", "Bow", "Crossbow", "Dagger", "Lightsaber", "Shield", "Spear", "Staff", "Sword"
     ],
@@ -102,6 +114,12 @@
     ]
   },
   "attireGroups": {
+    "Tarzan / Jungle": [
+        "As-Is (Skip)", "Distressed Safari Outfit", "Jungle Rags", "Leopard Skin Loincloth", "Tribal Chieftain Regalia", "Vine-Covered Camouflage", "Woven Grass Skirt"
+    ],
+    "Conan / Hyborian": [
+        "As-Is (Skip)", "Aquilonian Noble Tunic", "Bronze Scale Bikini", "Cimmerian Fur Armor", "Executioner Hood & Kilt", "Fur Loincloth & Harness", "Gladiator Leather Armor", "Stygian Sorcerer Robes", "Thief Leathers"
+    ],
     "Casual": ["As-Is (Skip)", "Flannel Shirt", "Hoodie & Sweatpants", "Leather Jacket", "Oversized Sweater", "Summer Dress", "Tank Top & Shorts", "T-Shirt & Jeans"],
     "Office / Formal": ["As-Is (Skip)", "Blazer & Skirt", "Business Suit", "Cocktail Dress", "Evening Gown", "Pencil Skirt & Blouse", "Tuxedo", "Waistcoat"],
     "Uniforms": ["As-Is (Skip)", "Chef's Whites", "Lab Coat", "Maid Outfit", "Military Fatigues", "Nurse Uniform", "Pilot Suit", "Police Uniform", "School Uniform"],

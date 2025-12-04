@@ -1,7 +1,3 @@
-
-
-
-
 import React, { useMemo, useState } from 'react';
 import { Job, SourceImage, FailedItem, ValidationJob } from '../types';
 import { Check, Trash2, RefreshCw, AlertTriangle, Ban, XCircle, Loader2, Layers, Image as ImageIcon, ScanSearch, RotateCcw } from 'lucide-react';
@@ -19,6 +15,8 @@ interface Props {
   onDeleteFailed: (id: string) => void;
   onDeleteJob: (id: string) => void;
   onDeleteSource: (id: string) => void;
+  onDeleteAllBlocked: (items: FailedItem[]) => void;
+  onViewJob?: (job: Job | FailedItem) => void;
 }
 
 type TabType = 'UPLOADS' | 'VALIDATING' | 'JOBS' | 'QUEUE' | 'FAILED' | 'PROHIBITED' | 'BLOCKED';
@@ -35,7 +33,9 @@ const Sidebar: React.FC<Props> = ({
   onRetryAll,
   onDeleteFailed,
   onDeleteJob,
-  onDeleteSource
+  onDeleteSource,
+  onDeleteAllBlocked,
+  onViewJob
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>('UPLOADS');
 
@@ -85,23 +85,14 @@ const Sidebar: React.FC<Props> = ({
       // 1. Must be READY (Validating done)
       // 2. No QUEUED or PROCESSING jobs for this source
       // 3. Must have had at least one job (or completed ones)
-      // Actually simpler: if related jobs > 0 AND all related jobs are COMPLETED or FAILED/BLOCKED (none pending)
       
       const relatedJobs = jobs.filter(j => j.sourceImageId === sourceId);
       const active = relatedJobs.filter(j => j.status === 'QUEUED' || j.status === 'PROCESSING');
       
-      // We also need to check if there are ANY active jobs in the main list. 
-      // However, jobs[] passed prop usually contains pending/active. Completed are removed from jobs[].
-      // So if active.length === 0, it means no active jobs for this source.
-      
-      // Also need to check validation queue
       const isValidating = validationQueue.some(v => v.sourceImageId === sourceId);
       if (isValidating) return '';
 
       // If no active jobs, and it exists in registry...
-      // We want to highlight it ONLY if it actually finished a batch.
-      // But since we delete completed jobs from the main jobs array, `active` will be 0.
-      // We assume if it's in registry but not processing, it's done.
       if (active.length === 0 && !isValidating) {
           return 'border-4 border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.5)]';
       }
@@ -118,10 +109,16 @@ const Sidebar: React.FC<Props> = ({
     overlay?: React.ReactNode,
     isSelected?: boolean,
     onSelect?: () => void,
+    onClick?: () => void,
     extraClasses?: string
   ) => (
-    <div className={`relative group mb-4 flex flex-col ${extraClasses || ''}`}>
-      <div className={`relative w-full bg-slate-900 rounded-lg overflow-hidden transition-all hover:shadow-md hover:border-slate-600 ${extraClasses ? '' : 'border border-slate-800'}`}>
+    <div 
+        className={`relative group mb-4 flex flex-col ${extraClasses || ''} ${onClick || onSelect ? 'cursor-pointer' : ''}`}
+        onClick={onClick || onSelect}
+    >
+      <div 
+        className={`relative w-full bg-slate-900 rounded-lg overflow-hidden transition-all hover:shadow-md hover:border-slate-600 ${extraClasses ? '' : 'border border-slate-800'}`}
+      >
         <img src={imageUrl} alt="thumbnail" className="w-full h-auto object-cover block opacity-80 group-hover:opacity-100 transition-opacity" />
         
         {/* Checkbox for Filtering */}
@@ -153,7 +150,7 @@ const Sidebar: React.FC<Props> = ({
         </div>
 
         {/* Actions (Top Right) */}
-        <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+        <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-20" onClick={e => e.stopPropagation()}>
             {actions}
         </div>
       </div>
@@ -175,10 +172,11 @@ const Sidebar: React.FC<Props> = ({
                         src.previewUrl, 
                         src.name, 
                         src.status === 'VALIDATING' ? 'Analyzing filename...' : `${src.type} • Source`,
-                        <button onClick={() => onDeleteSource(src.id)} className="p-1.5 bg-black/60 hover:bg-red-600 text-white rounded transition-colors"><Trash2 size={12}/></button>,
+                        <button onClick={(e) => { e.stopPropagation(); onDeleteSource(src.id); }} className="p-1.5 bg-black/60 hover:bg-red-600 text-white rounded transition-colors"><Trash2 size={12}/></button>,
                         src.status === 'VALIDATING' ? <Loader2 className="animate-spin text-purple-500" /> : null,
                         selectedSourceIds.has(src.id),
                         () => onToggleSource(src.id),
+                        undefined, // Standard click behavior (toggles source)
                         getUploadStatusClass(src.id)
                     ))}
                 </div>
@@ -188,8 +186,6 @@ const Sidebar: React.FC<Props> = ({
                 <div className="p-4">
                     {validationQueue.length === 0 && <p className="text-slate-700 text-xs italic text-center py-4">No images validating</p>}
                     {validationQueue.map(job => {
-                        // Use local blob url from registry if available, else create temp? 
-                        // Registry should have it.
                         const src = sourceRegistry.get(job.sourceImageId);
                         if (!src) return null;
                          return renderCard(
@@ -216,7 +212,8 @@ const Sidebar: React.FC<Props> = ({
                             null,
                             <Loader2 className="animate-spin text-amber-500 w-8 h-8 drop-shadow-lg" />,
                             selectedSourceIds.has(job.sourceImageId),
-                            () => onToggleSource(job.sourceImageId)
+                            () => onToggleSource(job.sourceImageId),
+                            onViewJob ? () => onViewJob(job) : undefined
                         );
                     })}
                 </div>
@@ -235,7 +232,8 @@ const Sidebar: React.FC<Props> = ({
                             <button onClick={() => onDeleteJob(job.id)} className="p-1.5 bg-black/60 hover:bg-slate-700 text-white rounded transition-colors"><XCircle size={12}/></button>,
                             <Layers className="text-blue-500/50 w-8 h-8" />,
                             selectedSourceIds.has(job.sourceImageId),
-                            () => onToggleSource(job.sourceImageId)
+                            () => onToggleSource(job.sourceImageId),
+                            onViewJob ? () => onViewJob(job) : undefined
                         );
                     })}
                 </div>
@@ -263,7 +261,8 @@ const Sidebar: React.FC<Props> = ({
                             </div>,
                             <AlertTriangle className="text-orange-500 w-8 h-8" />,
                             selectedSourceIds.has(item.sourceImageId),
-                            () => onToggleSource(item.sourceImageId)
+                            () => onToggleSource(item.sourceImageId),
+                            onViewJob ? () => onViewJob(item) : undefined
                         )
                     ))}
                 </div>
@@ -293,7 +292,8 @@ const Sidebar: React.FC<Props> = ({
                             </div>,
                             <Ban className="text-red-500 w-8 h-8" />,
                             selectedSourceIds.has(item.sourceImageId),
-                            () => onToggleSource(item.sourceImageId)
+                            () => onToggleSource(item.sourceImageId),
+                            onViewJob ? () => onViewJob(item) : undefined
                         )
                     ))}
                 </div>
@@ -301,6 +301,14 @@ const Sidebar: React.FC<Props> = ({
         case 'BLOCKED':
              return (
                 <div className="p-4">
+                     {blocked.length > 0 && (
+                        <button 
+                            onClick={() => onDeleteAllBlocked(blocked)}
+                            className="w-full mb-4 flex items-center justify-center gap-2 py-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-red-400 border border-slate-700 hover:border-red-900/50 rounded transition-colors text-xs font-bold uppercase tracking-wider"
+                        >
+                            <Trash2 size={14} /> Delete All ({blocked.length})
+                        </button>
+                    )}
                     {blocked.length === 0 && <p className="text-slate-700 text-xs italic text-center py-4">No blocked jobs</p>}
                     {blocked.map(item => (
                         renderCard(
@@ -310,7 +318,8 @@ const Sidebar: React.FC<Props> = ({
                             <button onClick={() => onDeleteFailed(item.id)} className="p-1.5 bg-black/60 hover:bg-slate-700 text-white rounded"><Trash2 size={12}/></button>,
                             <XCircle className="text-slate-500 w-8 h-8" />,
                             selectedSourceIds.has(item.sourceImageId),
-                            () => onToggleSource(item.sourceImageId)
+                            () => onToggleSource(item.sourceImageId),
+                            onViewJob ? () => onViewJob(item) : undefined
                         )
                     ))}
                 </div>
