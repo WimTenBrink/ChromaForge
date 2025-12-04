@@ -14,12 +14,13 @@ export interface AppOptions {
   gender: string[];
   age: string[];
   bodyType: string[];
-  breastSize: string[]; // New field
+  breastSize: string[];
   skin: string[];
   hair: string[];
   eyeColor: string[];
   emotions: string[];
   clothes: string[];
+  bondage: string[]; // New dedicated field
   shoes: string[];
   species: string[];
   technology: string[];
@@ -35,7 +36,7 @@ export interface AppOptions {
   camera: string[];
   mood: string[];
   decorations: string[];
-  skinConditions: string[]; // New field for mud, blood, etc.
+  skinConditions: string[];
   
   // D&D Class Options
   dndFighterOutfit: string[];
@@ -69,6 +70,7 @@ export interface GlobalConfig {
   itemGroups: Record<string, string[]>;
   decorationGroups: Record<string, string[]>;
   attireGroups: Record<string, string[]>;
+  bondageGroups: Record<string, string[]>; // New config group
   skinConditionGroups: Record<string, string[]>;
   // D&D Configuration
   dndOutfits: Record<string, string[]>;
@@ -77,7 +79,7 @@ export interface GlobalConfig {
       gender: string[];
       age: string[];
       bodyType: string[];
-      breastSize: string[]; // New field
+      breastSize: string[];
       skin: string[];
       hair: string[];
       eyeColor: string[];

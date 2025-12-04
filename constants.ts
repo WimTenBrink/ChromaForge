@@ -12,6 +12,7 @@ export const DEFAULT_OPTIONS: AppOptions = {
   eyeColor: [],
   emotions: [],
   clothes: [],
+  bondage: [], // New field
   shoes: [],
   species: [],
   technology: [],

@@ -1,7 +1,7 @@
 
 
 import React, { useState, useMemo, useRef } from 'react';
-import { X, User, Zap, Map as MapIcon, Clock, Sparkles, Monitor, Package, Sliders, Palette, Lightbulb, Camera, Smile, Cloud, Brush, Calculator, Ban, Shirt, CheckSquare, Square, Layers, Activity, Droplets, Download, Upload, Check, Sword } from 'lucide-react';
+import { X, User, Zap, Map as MapIcon, Clock, Sparkles, Monitor, Package, Sliders, Palette, Lightbulb, Camera, Smile, Cloud, Brush, Calculator, Ban, Shirt, CheckSquare, Square, Layers, Activity, Droplets, Download, Upload, Check, Sword, Lock } from 'lucide-react';
 import { AppOptions, GlobalConfig } from '../types';
 import { DEFAULT_OPTIONS, DND_CLASSES } from '../constants';
 import { countPermutations } from '../utils/combinatorics';
@@ -15,7 +15,7 @@ interface Props {
 }
 
 const OptionsDialog: React.FC<Props> = ({ isOpen, onClose, options, setOptions, config }) => {
-  const [activeTab, setActiveTab] = useState<'CHAR' | 'ATTIRE' | 'DND' | 'SPECIES' | 'ITEMS' | 'DECOR' | 'SKIN_FX' | 'TECH' | 'ENV' | 'TIME' | 'WEATHER' | 'RATIO' | 'STYLE' | 'LIGHTING' | 'CAMERA' | 'MOOD' | 'ACTION' | 'CUSTOM'>('CHAR');
+  const [activeTab, setActiveTab] = useState<'CHAR' | 'ATTIRE' | 'BONDAGE' | 'DND' | 'SPECIES' | 'ITEMS' | 'DECOR' | 'SKIN_FX' | 'TECH' | 'ENV' | 'TIME' | 'WEATHER' | 'RATIO' | 'STYLE' | 'LIGHTING' | 'CAMERA' | 'MOOD' | 'ACTION' | 'CUSTOM'>('CHAR');
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // State for Save Preset UI
@@ -274,12 +274,19 @@ const OptionsDialog: React.FC<Props> = ({ isOpen, onClose, options, setOptions, 
                     const isCombined = options.combinedGroups?.includes(k);
 
                     if (Array.isArray(val) && val.length > 0) {
+                        // Color Logic: Blue if >1 item, Emerald if 1 item. Combined usually takes precedence style-wise
+                        // User request: "any selection with two or more items should be blue"
+                        
+                        let pillClass = 'bg-emerald-900/40 border-emerald-500/30 text-emerald-200 hover:bg-red-900/20 hover:border-red-500/50';
+                        
+                        if (isCombined) {
+                             pillClass = 'bg-indigo-900/40 border-indigo-500/30 text-indigo-200 hover:bg-red-900/20 hover:border-red-500/50';
+                        } else if (val.length >= 2) {
+                             pillClass = 'bg-blue-900/40 border-blue-500/30 text-blue-200 hover:bg-red-900/20 hover:border-red-500/50';
+                        }
+
                         return (
-                            <div key={k} className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs border transition-colors cursor-pointer group ${
-                                isCombined 
-                                ? 'bg-indigo-900/40 border-indigo-500/30 text-indigo-200 hover:bg-red-900/20 hover:border-red-500/50'
-                                : 'bg-emerald-900/40 border-emerald-500/30 text-emerald-200 hover:bg-red-900/20 hover:border-red-500/50'
-                            }`} onClick={() => setOptions({...options, [k]: []})}>
+                            <div key={k} className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs border transition-colors cursor-pointer group ${pillClass}`} onClick={() => setOptions({...options, [k]: []})}>
                                 <span className="opacity-50 uppercase text-[9px] font-bold mr-0.5">{k}{isCombined ? ' (Comb)' : ''}:</span>
                                 <span className="max-w-[150px] truncate">
                                     {isCombined ? val.join(' + ') : val.length + ' items'}
@@ -325,6 +332,7 @@ const OptionsDialog: React.FC<Props> = ({ isOpen, onClose, options, setOptions, 
              {[
                { id: 'CHAR', label: 'Characters', icon: User },
                { id: 'ATTIRE', label: 'Attire', icon: Shirt },
+               { id: 'BONDAGE', label: 'Bondage', icon: Lock }, // New Tab
                { id: 'DND', label: 'D&D Classes', icon: Sword },
                { id: 'SPECIES', label: 'Species', icon: Sparkles },
                { id: 'ITEMS', label: 'Items', icon: Package },
@@ -392,6 +400,24 @@ const OptionsDialog: React.FC<Props> = ({ isOpen, onClose, options, setOptions, 
                     <div className="mt-8 pt-8 border-t border-slate-800">
                        {renderCheckboxes('shoes', 'Footwear')}
                     </div>
+                </div>
+              </div>
+            )}
+            {activeTab === 'BONDAGE' && (
+              <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
+                {options.removeCharacters && (
+                    <div className="p-4 bg-red-900/20 border border-red-500/30 rounded-lg flex items-center gap-3 text-red-200 mb-4">
+                        <Ban size={20} />
+                        <span className="text-sm font-medium">Bondage options are disabled in Landscape Mode.</span>
+                    </div>
+                )}
+                <div className={options.removeCharacters ? 'opacity-30 pointer-events-none grayscale' : ''}>
+                    <div className="p-4 bg-slate-800 rounded-lg mb-6 border border-slate-700">
+                        <p className="text-sm text-slate-400">
+                            <strong className="text-emerald-400">Note:</strong> Selecting bondage options may override standard clothing with artistic/implied nudity constraints to ensure the restraints are visible. The AI will prioritize safety and artistic merit.
+                        </p>
+                    </div>
+                    {renderGroups(config.bondageGroups, 'bondage', 'Restraints & Bondage')}
                 </div>
               </div>
             )}

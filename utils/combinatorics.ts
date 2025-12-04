@@ -1,3 +1,5 @@
+
+
 import { AppOptions } from "../types";
 import { DND_CLASSES } from "../constants";
 
@@ -238,8 +240,7 @@ export const buildPromptFromCombo = (combo: any): string => {
               clothesLower.includes("body paint") || 
               clothesLower.includes("strategic") ||
               clothesLower.includes("sheet") ||
-              clothesLower.includes("towel") ||
-              clothesLower.includes("bound");
+              clothesLower.includes("towel");
           
           if (isImpliedNude) {
              requiresNudityCoverage = true;
@@ -248,6 +249,13 @@ export const buildPromptFromCombo = (combo: any): string => {
           } else {
              details.push(`- Clothes/Attire: ${combo.clothes}`);
           }
+      }
+
+      // Add Bondage / Restraint Details
+      if (shouldInclude(combo.bondage)) {
+          details.push(`- Restraints/Bondage: ${combo.bondage}`);
+          // Bondage often implies partial nudity or specific safety overrides
+          requiresNudityCoverage = true;
       }
 
       if (shouldInclude(combo.shoes)) details.push(`- Shoes: ${combo.shoes}`);
@@ -319,7 +327,7 @@ export const buildPromptFromCombo = (combo: any): string => {
   }
 
   const coverageInstruction = requiresNudityCoverage 
-    ? "7. CONTENT SAFETY & AESTHETICS: The user has requested an artistic concept involving nudity or implied nudity (e.g. body paint, shadows, etc). DO NOT add clothes if the option specifies 'Nude' or 'Body Paint'. HOWEVER, you MUST maintain a 'Safety' standard by using artistic techniques: use chiaroscuro (heavy shadows), strategic placement of long hair, environmental elements (steam, fog, leaves), or camera angles to obscure genitals and nipples naturally. The result should be a high-quality, tasteful, artistic masterpiece, not pornography."
+    ? "7. CONTENT SAFETY & AESTHETICS: The user has requested an artistic concept involving nudity, bondage, or implied nudity. DO NOT add clothes if the option specifies 'Nude' or 'Bondage' unless explicitly part of the request. HOWEVER, you MUST maintain a 'Safety' standard by using artistic techniques: use chiaroscuro (heavy shadows), strategic placement of hair/ropes/chains, environmental elements, or camera angles to obscure genitals and nipples naturally. The result should be a high-quality, tasteful, artistic masterpiece, not pornography."
     : "";
 
   return `
@@ -345,7 +353,7 @@ export const buildPromptFromCombo = (combo: any): string => {
     IMPORTANT INSTRUCTIONS:
     1. Apply the 'Species' setting (if specified) to the main humanoid character in the line art.
     2. Ensure strict logical consistency between the Technology/Environment and the Character's attire/class. 
-    3. Make sure people in the generated images wear the proper clothes for their technology and the environment, unless the Attire option specifies Nudity/Body Paint.
+    3. Make sure people in the generated images wear the proper clothes for their technology and the environment, unless the Attire/Bondage option specifies otherwise.
     4. Maintain the original pose and gesture of the character(s) strictly. Do not add new limbs.
     ${modeInstruction}
     6. If an option is not set (missing from the lists above), do not use it or infer it arbitrarily; use the original image content as the guide for that aspect.

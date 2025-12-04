@@ -1,4 +1,6 @@
 
+
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Play, Pause, Settings, Terminal, Shield, ShieldCheck, Trash2, Loader2, Activity, Book, Upload, Clock, Save, FolderOpen, Plus, Search, RefreshCw } from 'lucide-react';
 import Sidebar from './components/Sidebar';
@@ -567,6 +569,33 @@ const App: React.FC = () => {
       }
   };
 
+  const handleRetryAll = (itemsToRetry: FailedItem[]) => {
+      const itemIdsToRemove = new Set<string>();
+      const jobsToAdd: Job[] = [];
+
+      itemsToRetry.forEach(item => {
+          const isSafety = item.error.toLowerCase().includes('prohibited') || item.error.toLowerCase().includes('safety');
+          const limit = isSafety ? 1 : 3;
+          
+          if (item.retryCount < limit && item.originalJob) {
+              itemIdsToRemove.add(item.id);
+              const retryJob: Job = { 
+                  ...(item.originalJob as Job), 
+                  retryCount: item.retryCount + 1, 
+                  status: 'QUEUED' 
+              };
+              jobsToAdd.push(retryJob);
+          }
+      });
+      
+      if (jobsToAdd.length > 0) {
+          setFailedItems(prev => prev.filter(f => !itemIdsToRemove.has(f.id)));
+          setJobQueue(prev => [...jobsToAdd, ...prev]); // Add to top
+          if (!isProcessing) setIsProcessing(true);
+          log('INFO', 'Batch Retry Started', { count: jobsToAdd.length });
+      }
+  };
+
   const handleDeleteFailed = (id: string) => {
       setFailedItems(prev => prev.filter(f => f.id !== id));
   };
@@ -831,6 +860,7 @@ const App: React.FC = () => {
               onToggleSource={handleToggleSourceFilter}
               onDeselectAll={() => setSelectedSourceIds(new Set())}
               onRetry={handleRetry}
+              onRetryAll={handleRetryAll}
               onDeleteFailed={handleDeleteFailed}
               onDeleteJob={handleRemoveJob}
               onDeleteSource={handleDeleteSource}

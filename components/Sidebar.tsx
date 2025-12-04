@@ -1,8 +1,10 @@
 
 
+
+
 import React, { useMemo, useState } from 'react';
 import { Job, SourceImage, FailedItem, ValidationJob } from '../types';
-import { Check, Trash2, RefreshCw, AlertTriangle, Ban, XCircle, Loader2, Layers, Image as ImageIcon, ScanSearch } from 'lucide-react';
+import { Check, Trash2, RefreshCw, AlertTriangle, Ban, XCircle, Loader2, Layers, Image as ImageIcon, ScanSearch, RotateCcw } from 'lucide-react';
 
 interface Props {
   jobs: Job[];
@@ -13,6 +15,7 @@ interface Props {
   onToggleSource: (id: string) => void;
   onDeselectAll: () => void;
   onRetry: (item: FailedItem) => void;
+  onRetryAll: (items: FailedItem[]) => void;
   onDeleteFailed: (id: string) => void;
   onDeleteJob: (id: string) => void;
   onDeleteSource: (id: string) => void;
@@ -29,6 +32,7 @@ const Sidebar: React.FC<Props> = ({
   onToggleSource,
   onDeselectAll,
   onRetry,
+  onRetryAll,
   onDeleteFailed,
   onDeleteJob,
   onDeleteSource
@@ -239,6 +243,14 @@ const Sidebar: React.FC<Props> = ({
         case 'FAILED':
              return (
                 <div className="p-4">
+                    {failed.length > 0 && (
+                        <button 
+                            onClick={() => onRetryAll(failed)}
+                            className="w-full mb-4 flex items-center justify-center gap-2 py-2 bg-slate-800 hover:bg-orange-900/40 text-orange-400 hover:text-orange-200 border border-orange-900/50 rounded transition-colors text-xs font-bold uppercase tracking-wider"
+                        >
+                            <RotateCcw size={14} /> Retry All ({failed.length})
+                        </button>
+                    )}
                     {failed.length === 0 && <p className="text-slate-700 text-xs italic text-center py-4">No failed jobs</p>}
                     {failed.map(item => (
                         renderCard(
@@ -259,6 +271,14 @@ const Sidebar: React.FC<Props> = ({
         case 'PROHIBITED':
              return (
                 <div className="p-4">
+                     {prohibited.length > 0 && (
+                        <button 
+                            onClick={() => onRetryAll(prohibited)}
+                            className="w-full mb-4 flex items-center justify-center gap-2 py-2 bg-slate-800 hover:bg-red-900/40 text-red-400 hover:text-red-200 border border-red-900/50 rounded transition-colors text-xs font-bold uppercase tracking-wider"
+                        >
+                            <RotateCcw size={14} /> Retry All ({prohibited.length})
+                        </button>
+                    )}
                     {prohibited.length === 0 && <p className="text-slate-700 text-xs italic text-center py-4">No violations</p>}
                     {prohibited.map(item => (
                         renderCard(

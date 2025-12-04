@@ -1,3 +1,4 @@
+
 {
   "speciesGroups": {
     "Star Wars": [
@@ -106,13 +107,6 @@
     "Uniforms": ["As-Is (Skip)", "Chef's Whites", "Lab Coat", "Maid Outfit", "Military Fatigues", "Nurse Uniform", "Pilot Suit", "Police Uniform", "School Uniform"],
     "Armor / Fantasy": ["As-Is (Skip)", "Chainmail", "Cybernetic Suit", "Leather Armor", "Paladin Armor", "Plate Mail", "Power Armor", "Thief Leathers", "Wizard Robes"],
     "Beach / Swim": ["As-Is (Skip)", "Bikini", "One-Piece Swimsuit", "Sarong", "Swim Trunks", "Wetsuit"],
-    "Bondage": [
-        "As-Is (Skip)", "Ball and Chain", "Bound in Heavy Chains", "Bound in Ropes (Shibari)", "Caught in a Net", 
-        "Chained to Wall", "Collar and Leash", "Cuffs and Collar", "Ensnared by Vines", "Frozen in Carbonite", 
-        "Gagged and Bound", "Handcuffs (Behind Back)", "Handcuffs (Front)", "Heavy Iron Shackles", "Hogtied", 
-        "Imprisoned in Cage", "Pillory Restraint", "Rope Harness", "Silk Rope Binding", "Spider Web Cocoon", 
-        "Straitjacket", "Suspended by Chains", "Tied to a Chair", "Tied to a Pole", "Wooden Stocks", "Wrist & Ankle Manacles"
-    ],
     "Implied Nudity / Artistic": [
       "As-Is (Skip)", "Backlit Silhouette", "Bandages (Mummy)", "Body Paint (Floral)", "Body Paint (Gold)", "Body Paint (Silver)", "Body Paint (Tribal)", 
       "Covered in Blood", "Covered in Clay", "Covered in Mud", "Covered in Oil", "Covered in Slime", "Draped in Fur Stole", 
@@ -120,6 +114,28 @@
       "Long Hair Coverage", "Ribbon Wrapping", "Shadows (Chiaroscuro)", "Sheer Lace Lingerie", "Sheer Silk Veil", 
       "Strategic Jewelry", "Strategic Object Placement", "Translucent Plastic", "Wet White Shirt"
     ]
+  },
+  "bondageGroups": {
+      "Rope & Knots": [
+          "As-Is (Skip)", "Chest Harness (Shibari)", "Complex Shibari Tortoise Shell", "Decorative Rope Knots", "Hemp Rope Binding", 
+          "Hogtied with Rope", "Red Silk Ropes", "Suspension Ropes", "Tied to Chair (Rope)", "Tied to Pole (Rope)", "Wrist & Ankle Rope Ties"
+      ],
+      "Chains & Metal": [
+          "As-Is (Skip)", "Ball and Chain", "Chain Leash", "Chained to Wall", "Collar and Chain", "Heavy Industrial Chains", 
+          "Heavy Iron Shackles", "Metal Cuffs", "Rusty Chains", "Steel Manacles", "Suspended by Chains"
+      ],
+      "Restraints & Furniture": [
+          "As-Is (Skip)", "Attached to Cross", "Body Bag", "Caught in a Net", "Ensnared by Vines", "Frozen in Carbonite", 
+          "Imprisoned in Cage", "Locked in Stocks", "Pillory Restraint", "Spreader Bar", "Straitjacket", "Wooden Stocks"
+      ],
+      "Posture & Suspension": [
+          "As-Is (Skip)", "Armbinder", "Box Tie", "Frogtied", "Hogtied", "Inverted Suspension", "Kneeling Bound", 
+          "Praying Mantis Tie", "Reverse Prayer", "Spread Eagle Bound", "Suspended Upside Down"
+      ],
+      "Accessories & Gags": [
+          "As-Is (Skip)", "Ball Gag", "Blindfold (Leather)", "Blindfold (Silk)", "Collar (Leather)", "Collar (Metal)", 
+          "Duct Tape Binding", "Gas Mask", "Harness (Leather)", "Harness (Webbing)", "Hooded", "Muzzle", "Ring Gag", "Tape Over Mouth"
+      ]
   },
   "decorationGroups": {
     "Tattoos": ["As-Is (Skip)", "Bio-mech Tattoo", "Dragon Tattoo", "Face Tattoo", "Henna", "Minimalist Tattoo", "Sleeve Tattoo", "Tribal Tattoo", "Yakuza Style"],
