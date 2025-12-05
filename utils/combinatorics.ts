@@ -242,7 +242,9 @@ export const buildPromptFromCombo = (combo: any): string => {
               clothesLower.includes("draped") ||
               clothesLower.includes("bandages") ||
               clothesLower.includes("silhouette") ||
-              clothesLower.includes("sheer");
+              clothesLower.includes("sheer") ||
+              clothesLower.includes("topless") ||
+              clothesLower.includes("bottomless");
           
           if (isImpliedNude) {
              requiresNudityCoverage = true;

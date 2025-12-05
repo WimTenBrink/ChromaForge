@@ -186,6 +186,12 @@
     ],
     "Implied Nudity / Artistic": [
       "As-Is (Skip)", "Plain Nude", "Backlit Silhouette", "Covered in Flowers", "Covered in Jewels", "Covered in Money", "Flowers & Vines Coverage", "Foam/Bubbles Coverage", "Fog/Mist Obscured", "Hair Coverage (Godiva)", "Hands Coverage", "Shadows (Chiaroscuro)", "Strategic Object Placement", "Water Submersion Distortion"
+    ],
+    "Topless (Bottoms Only)": [
+      "As-Is (Skip)", "Baggy Cargo Pants (Topless)", "Bikini Bottoms (Topless)", "Black Leggings (Topless)", "Blue Jeans (Topless)", "Board Shorts (Topless)", "Chainmail Skirt (Topless)", "Denim Cutoffs (Topless)", "Gladiator Kilt (Topless)", "Gym Shorts (Topless)", "Harem Pants (Topless)", "Leather Chaps (Topless)", "Leather Pants (Topless)", "Loincloth (Topless)", "Long Flowing Skirt (Topless)", "Micro-Mini Skirt (Topless)", "Pajama Bottoms (Topless)", "Pleated School Skirt (Topless)", "Sarong / Pareo (Topless)", "Tactical Trousers (Topless)", "Towel around Waist (Topless)", "Yoga Pants (Topless)"
+    ],
+    "Bottomless (Tops Only)": [
+      "As-Is (Skip)", "Apron Only (Bottomless)", "Baggy T-Shirt (Bottomless)", "Band T-Shirt (Bottomless)", "Bikini Top (Bottomless)", "Button-Up Shirt (Bottomless)", "Corset (Bottomless)", "Crop Top (Bottomless)", "Flannel Shirt (Bottomless)", "Fur Stole (Bottomless)", "Hoodie (Bottomless)", "Leather Jacket (Bottomless)", "Leather Vest (Bottomless)", "Loose Tank Top (Bottomless)", "Off-Shoulder Blouse (Bottomless)", "Oversized Sweater (Bottomless)", "Sports Bra (Bottomless)", "Suit Jacket (Bottomless)", "Sweatshirt (Bottomless)", "Tactical Vest (Bottomless)", "Towel around Chest (Bottomless)", "Tube Top (Bottomless)", "Tunic (Bottomless)", "Winter Coat (Bottomless)"
     ]
   },
   "bondageGroups": {
