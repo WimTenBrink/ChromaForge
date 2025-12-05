@@ -1003,6 +1003,7 @@ const App: React.FC = () => {
               sourceRegistry={sourceRegistry}
               failedItems={failedItems}
               selectedSourceIds={selectedSourceIds}
+              generatedImages={generatedImages}
               onToggleSource={handleToggleSourceFilter}
               onDeselectAll={() => setSelectedSourceIds(new Set())}
               onRetry={handleRetry}

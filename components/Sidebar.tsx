@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { Job, SourceImage, FailedItem, ValidationJob } from '../types';
-import { Check, Trash2, RefreshCw, AlertTriangle, Ban, XCircle, Loader2, Layers, Image as ImageIcon, ScanSearch, RotateCcw, Eraser } from 'lucide-react';
+import { Job, SourceImage, FailedItem, ValidationJob, GeneratedImage } from '../types';
+import { Check, Trash2, RefreshCw, AlertTriangle, Ban, XCircle, Loader2, Layers, Image as ImageIcon, ScanSearch, RotateCcw, Eraser, Filter } from 'lucide-react';
 
 interface Props {
   jobs: Job[];
@@ -8,6 +8,7 @@ interface Props {
   sourceRegistry: Map<string, SourceImage>;
   failedItems: FailedItem[];
   selectedSourceIds: Set<string>;
+  generatedImages: GeneratedImage[];
   onToggleSource: (id: string) => void;
   onDeselectAll: () => void;
   onRetry: (item: FailedItem) => void;
@@ -32,6 +33,7 @@ const Sidebar: React.FC<Props> = ({
   sourceRegistry,
   failedItems,
   selectedSourceIds,
+  generatedImages,
   onToggleSource,
   onDeselectAll,
   onRetry,
@@ -47,6 +49,7 @@ const Sidebar: React.FC<Props> = ({
   onEmptyFailed
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>('UPLOADS');
+  const [showFinishedOnly, setShowFinishedOnly] = useState(false);
 
   // --- derived lists ---
   const uploads: SourceImage[] = Array.from(sourceRegistry.values());
@@ -88,39 +91,55 @@ const Sidebar: React.FC<Props> = ({
       { id: 'BLOCKED', label: 'Dead', icon: XCircle, count: blocked.length, color: 'text-slate-500' },
   ];
 
+  // Helper to calculate job statistics for a source
+  const getSourceStats = (sourceId: string) => {
+    const active = jobs.filter(j => j.sourceImageId === sourceId).length;
+    const completed = generatedImages.filter(g => g.sourceImageId === sourceId).length;
+    // We count all types of failures (Failed, Prohibited, Blocked) as "Failed attempts" for stats
+    const failedAttempts = failedItems.filter(f => f.sourceImageId === sourceId).length;
+    
+    // Finished means successful generations + terminal failures.
+    // However, usually users just want to know how many images they got vs how many requested.
+    // "how many jobs are linked to this and how many of them have finished"
+    const total = active + completed + failedAttempts;
+    // We'll count 'finished' as completed generations + dead/blocked jobs. Retryable failed jobs are technically 'pending retry' in user mind?
+    // But logically, a failed job is finished unless retried.
+    // Let's use: Finished = Completed (Success)
+    // Or let's use: Finished = Total - Active.
+    const finished = total - active;
+    
+    return { active, completed, total, finished };
+  };
+
   // Logic for green border on uploads
   const getUploadStatusClass = (sourceId: string) => {
-      // Logic: 
-      // 1. Must be READY (Validating done)
-      // 2. No QUEUED or PROCESSING jobs for this source
-      // 3. No FAILED or PROHIBITED items for this source (job is technically not 'finished' if failed)
-      // 4. Must have had at least one job (or completed ones) - handled implicitly if valid
-      
-      const relatedJobs = jobs.filter(j => j.sourceImageId === sourceId);
-      const active = relatedJobs.filter(j => j.status === 'QUEUED' || j.status === 'PROCESSING');
-      
+      const stats = getSourceStats(sourceId);
       const isValidating = validationQueue.some(v => v.sourceImageId === sourceId);
-      if (isValidating) return '';
 
-      const hasFailed = failedItems.some(f => f.sourceImageId === sourceId && (
-           // Check if it's in failed or prohibited list (retryable). Blocked ones are "dead" so technically finished?
-           // The user said "Jobs in Failed or Ban queue are not finished"
-           !f.error.toLowerCase().includes('blocked') && f.retryCount < 3 // Approximation of non-dead
-      ));
-
-      if (hasFailed) return ''; // Still has actionable items
-
-      // If no active jobs, no validating, no pending failures...
-      if (active.length === 0) {
+      if (isValidating) return 'border border-slate-800';
+      
+      // Finished if no active jobs and at least one job was attempted (total > 0)
+      if (stats.active === 0 && stats.total > 0) {
           return 'border-4 border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.5)]';
       }
       return 'border border-slate-800';
   };
 
-  // Calculate if there are any finished uploads to enable the button
+  // Filter uploads based on "Select Finished" toggle
+  const displayUploads = useMemo(() => {
+    if (!showFinishedOnly) return uploads;
+    return uploads.filter(src => {
+        const stats = getSourceStats(src.id);
+        const isValidating = validationQueue.some(v => v.sourceImageId === src.id);
+        // "Finished" means no active jobs, no validating, and has processed something
+        return !isValidating && stats.active === 0 && stats.total > 0;
+    });
+  }, [uploads, jobs, generatedImages, failedItems, validationQueue, showFinishedOnly]);
+
+  // Calculate if there are any finished uploads to enable the 'Remove Finished' button
   const hasFinishedUploads = useMemo(() => {
       return uploads.some(src => getUploadStatusClass(src.id).includes('border-emerald-500'));
-  }, [uploads, jobs, validationQueue, failedItems]);
+  }, [uploads, jobs, generatedImages, failedItems, validationQueue]);
 
 
   // --- Render Helpers ---
@@ -128,7 +147,7 @@ const Sidebar: React.FC<Props> = ({
   const renderCard = (
     imageUrl: string, 
     title: string, 
-    subtitle: string, 
+    subtitle: React.ReactNode, 
     actions: React.ReactNode, 
     overlay?: React.ReactNode,
     isSelected?: boolean,
@@ -181,7 +200,7 @@ const Sidebar: React.FC<Props> = ({
       
       {/* Options / Details Text */}
       <div className="mt-2 px-1">
-          <p className="text-[10px] text-slate-400 leading-relaxed font-mono break-words">{subtitle}</p>
+          <div className="text-[10px] text-slate-400 leading-relaxed font-mono break-words">{subtitle}</div>
       </div>
     </div>
   );
@@ -205,6 +224,19 @@ const Sidebar: React.FC<Props> = ({
         case 'UPLOADS':
             return (
                 <div className="p-4">
+                    {/* Select Finished Filter Toggle */}
+                    <button
+                        onClick={() => setShowFinishedOnly(!showFinishedOnly)}
+                        className={`w-full mb-2 flex items-center justify-center gap-2 py-2 rounded transition-colors text-xs font-bold uppercase tracking-wider border ${
+                            showFinishedOnly
+                            ? 'bg-emerald-900/30 text-emerald-400 border-emerald-500/50'
+                            : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-750'
+                        }`}
+                    >
+                        <Filter size={14} /> Select Finished
+                    </button>
+
+                    {/* Remove Finished Action */}
                     {uploads.length > 0 && (
                         renderEmptyButton(
                             "Remove Finished", 
@@ -214,18 +246,43 @@ const Sidebar: React.FC<Props> = ({
                             "border-emerald-900/30 hover:border-red-900/50"
                         )
                     )}
-                    {uploads.length === 0 && <p className="text-slate-600 text-xs italic text-center py-4">Drag images to upload</p>}
-                    {uploads.map((src) => renderCard(
-                        src.previewUrl, 
-                        src.name, 
-                        src.status === 'VALIDATING' ? 'Analyzing filename...' : `${src.type} • Source`,
-                        <button onClick={(e) => { e.stopPropagation(); onDeleteSource(src.id); }} className="p-1.5 bg-black/60 hover:bg-red-600 text-white rounded transition-colors"><Trash2 size={12}/></button>,
-                        src.status === 'VALIDATING' ? <Loader2 className="animate-spin text-purple-500" /> : null,
-                        selectedSourceIds.has(src.id),
-                        () => onToggleSource(src.id),
-                        undefined, // Standard click behavior (toggles source)
-                        getUploadStatusClass(src.id)
-                    ))}
+                    
+                    {displayUploads.length === 0 && <p className="text-slate-600 text-xs italic text-center py-4">
+                        {showFinishedOnly ? "No finished uploads found." : "Drag images to upload"}
+                    </p>}
+
+                    {displayUploads.map((src) => {
+                        const stats = getSourceStats(src.id);
+                        const isAnalyzing = src.status === 'VALIDATING';
+                        
+                        let statusText: React.ReactNode = isAnalyzing ? 'Analyzing filename...' : `${src.type} • Source`;
+                        if (!isAnalyzing) {
+                            // "how many jobs are linked to this and how many of them have finished"
+                            statusText = (
+                                <div className="flex flex-col gap-0.5">
+                                    <span>{src.type} • Source</span>
+                                    <div className="flex items-center justify-between bg-slate-900/50 rounded px-1.5 py-0.5 mt-0.5 border border-slate-800">
+                                        <span className={stats.active === 0 && stats.total > 0 ? 'text-emerald-400' : 'text-slate-400'}>
+                                            Jobs: {stats.finished} / {stats.total}
+                                        </span>
+                                        {stats.active > 0 && <span className="text-amber-500 animate-pulse text-[9px] font-bold">ACTIVE</span>}
+                                    </div>
+                                </div>
+                            );
+                        }
+
+                        return renderCard(
+                            src.previewUrl, 
+                            src.name, 
+                            statusText,
+                            <button onClick={(e) => { e.stopPropagation(); onDeleteSource(src.id); }} className="p-1.5 bg-black/60 hover:bg-red-600 text-white rounded transition-colors"><Trash2 size={12}/></button>,
+                            src.status === 'VALIDATING' ? <Loader2 className="animate-spin text-purple-500" /> : null,
+                            selectedSourceIds.has(src.id),
+                            () => onToggleSource(src.id),
+                            undefined, // Standard click behavior (toggles source)
+                            getUploadStatusClass(src.id)
+                        );
+                    })}
                 </div>
             );
         case 'VALIDATING':

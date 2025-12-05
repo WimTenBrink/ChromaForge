@@ -222,7 +222,10 @@
     "Torso Coverage": ["As-Is (Skip)", "Abs Definition (Oiled)", "Blood on Chest/Stomach", "Bruised Torso", "Chest Hair", "Claw Marks on Torso", "Dirt/Grime on Torso", "Dried Blood on Torso", "Dried Mud on Torso", "Glowing Runes on Torso", "Mud on Torso", "Oil/Grease on Torso", "Scarred Torso", "Soot/Ash on Torso", "Sunburned Torso", "Sweat on Torso", "Tattooed Torso", "War Paint on Torso"],
     "Arms Coverage": ["As-Is (Skip)", "Blood on Arms", "Bruised Arms", "Dried Blood on Arms", "Dried Mud on Arms", "Dust on Arms", "Goosebumps", "Hairy Arms", "Mud on Arms", "Muscular Veins", "Oil/Grease on Arms", "Scarred Arms", "Soot/Ash on Arms", "Sweat on Arms", "Tattooed Arms", "War Paint on Arms"],
     "Legs Coverage": ["As-Is (Skip)", "Blood on Legs", "Bruised Legs", "Cellulite", "Dried Blood on Legs", "Dried Mud on Legs", "Dust on Legs", "Hairy Legs", "Mud on Legs", "Muddy Boots/Shin", "Oil/Grease on Legs", "Scarred Legs", "Soot/Ash on Legs", "Stocking Lines (Tan)", "Sweat on Legs", "War Paint on Legs"],
-    "Whole Body Coverage": ["As-Is (Skip)", "Covered in Alien Goo", "Covered in Blood", "Covered in Dried Blood", "Covered in Dried Mud", "Covered in Dust", "Covered in Mud", "Covered in Oil/Grease", "Covered in Slime", "Covered in Soot/Ash", "Cybernetic Seams", "Drenched in Water", "Glowing Veins", "Marble Skin Texture", "Porcelain Skin Texture", "Stone Skin Texture", "Wet Skin"]
+    "Whole Body Coverage": ["As-Is (Skip)", "Covered in Alien Goo", "Covered in Blood", "Covered in Dried Blood", "Covered in Dried Mud", "Covered in Dust", "Covered in Mud", "Covered in Oil/Grease", "Covered in Slime", "Covered in Soot/Ash", "Cybernetic Seams", "Drenched in Water", "Glowing Veins", "Marble Skin Texture", "Porcelain Skin Texture", "Stone Skin Texture", "Wet Skin"],
+    "Fur & Patterns": [
+      "As-Is (Skip)", "Bear Fur", "Cat Fur (Calico)", "Cheetah Spots", "Cow Pattern", "Dalmatian Spots", "Fox Fur", "Giraffe Pattern", "Goat Fur", "Hyena Fur", "Leopard Spots", "Lion Fur", "Panda Pattern", "Panther (Black Fur)", "Rabbit Fur", "Racoon Fur", "Sheep Wool", "Tiger Stripes", "Wolf Fur", "Zebra Pattern"
+    ]
   },
   "lists": {
     "gender": ["As-Is (Skip)", "Androgynous", "Female", "Intersex", "Male", "Non-binary"],

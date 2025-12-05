@@ -495,7 +495,7 @@ const OptionsDialog: React.FC<Props> = ({ isOpen, onClose, options, setOptions, 
                     </div>
                   )}
                   <div className={options.removeCharacters ? 'opacity-30 pointer-events-none grayscale' : ''}>
-                      {renderGroups(config.skinConditionGroups, 'skinConditions', 'Mud, Blood & Paint')}
+                      {renderGroups(config.skinConditionGroups, 'skinConditions', 'Skin Surface, Paint & Fur')}
                   </div>
               </div>
             )}
