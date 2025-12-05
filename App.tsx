@@ -7,7 +7,7 @@ import ImageDetailDialog from './components/ImageDetailDialog';
 import ManualDialog from './components/ManualDialog';
 import JobDetailDialog from './components/JobDetailDialog';
 import { AppOptions, Job, GeneratedImage, FailedItem, ImageAnalysis, GlobalConfig, SourceImage, ValidationJob } from './types';
-import { DEFAULT_OPTIONS, MAX_CONCURRENT_JOBS } from './constants';
+import { DEFAULT_OPTIONS } from './constants';
 import { generatePermutations, buildPromptFromCombo } from './utils/combinatorics';
 import { processImage, validateFileName } from './services/geminiService';
 import { log } from './services/logger';
@@ -17,6 +17,7 @@ const App: React.FC = () => {
   // --- State ---
   const [options, setOptions] = useState<AppOptions>(DEFAULT_OPTIONS);
   const [globalConfig, setGlobalConfig] = useState<GlobalConfig | null>(null);
+  const [maxConcurrentJobs, setMaxConcurrentJobs] = useState(5);
   
   // Data Store
   const [sourceRegistry, setSourceRegistry] = useState<Map<string, SourceImage>>(new Map());
@@ -485,7 +486,7 @@ const App: React.FC = () => {
     const activeWorkers = jobQueue.filter(j => j.status === 'PROCESSING').length;
     
     // Check if we can start more jobs
-    if (activeWorkers >= MAX_CONCURRENT_JOBS) return;
+    if (activeWorkers >= maxConcurrentJobs) return;
     
     // Find next QUEUED job (Top to Bottom - FIFO)
     const nextJob = jobQueue.find(j => j.status === 'QUEUED');
@@ -500,7 +501,7 @@ const App: React.FC = () => {
     // Start Job
     runJob(nextJob);
 
-  }, [isProcessing, jobQueue]); // Dependency on jobQueue ensures re-run when status changes
+  }, [isProcessing, jobQueue, maxConcurrentJobs]); // Dependency on jobQueue ensures re-run when status changes
 
   const runJob = async (job: Job) => {
     // 1. Mark as Processing
@@ -747,7 +748,7 @@ const App: React.FC = () => {
       currentStatusDetail = `Analyzing upload ${validationQueue.length}...`;
   } else if (isProcessing) {
     if (processingCount > 0) {
-        currentStatusTitle = `GENERATING (${processingCount}/${MAX_CONCURRENT_JOBS})`;
+        currentStatusTitle = `GENERATING (${processingCount}/${maxConcurrentJobs})`;
         currentStatusDetail = `Queue: ${activeJobs.length - processingCount} pending`;
     } else if (activeJobs.length > 0) {
             currentStatusTitle = 'PREPARING';
@@ -934,6 +935,22 @@ const App: React.FC = () => {
                 >
                     <FolderOpen size={18} />
                 </button>
+             </div>
+
+             {/* Job Count Input */}
+             <div className="flex items-center bg-slate-800 rounded-lg p-1 border border-slate-700 h-9" title="Concurrent Job Limit">
+                 <span className="text-[10px] text-slate-500 font-bold px-2 uppercase hidden xl:inline">Jobs:</span>
+                 <input 
+                    type="number" 
+                    min={1} 
+                    max={12} 
+                    value={maxConcurrentJobs}
+                    onChange={(e) => {
+                        const val = parseInt(e.target.value);
+                        if (!isNaN(val)) setMaxConcurrentJobs(Math.max(1, Math.min(12, val)));
+                    }}
+                    className="w-10 bg-slate-900 border border-slate-600 rounded text-xs text-center text-white focus:border-emerald-500 outline-none py-0.5"
+                 />
              </div>
 
              <button 
@@ -1211,6 +1228,7 @@ const App: React.FC = () => {
         onNext={handleNextImage}
         onPrev={handlePrevImage}
         onRepeat={handleRepeatJob}
+        onDelete={(img) => handleDeleteGalleryItem(img.id)}
         hasNext={viewedImage && 'id' in viewedImage ? generatedImages.findIndex(i => i.id === viewedImage.id) < generatedImages.length - 1 : false}
         hasPrev={viewedImage && 'id' in viewedImage ? generatedImages.findIndex(i => i.id === viewedImage.id) > 0 : false}
       />

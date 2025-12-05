@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, ZoomIn, ZoomOut, Maximize, Move, ChevronLeft, ChevronRight, Eye, EyeOff, RefreshCw } from 'lucide-react';
+import { X, ZoomIn, ZoomOut, Maximize, Move, ChevronLeft, ChevronRight, Eye, EyeOff, RefreshCw, Trash2 } from 'lucide-react';
 import { GeneratedImage } from '../types';
 
 interface ViewableImage {
@@ -18,11 +18,12 @@ interface Props {
   onNext?: () => void;
   onPrev?: () => void;
   onRepeat?: (img: GeneratedImage) => void;
+  onDelete?: (img: GeneratedImage) => void;
   hasNext?: boolean;
   hasPrev?: boolean;
 }
 
-const ImageDetailDialog: React.FC<Props> = ({ image, sourceUrl, onClose, onNext, onPrev, onRepeat, hasNext, hasPrev }) => {
+const ImageDetailDialog: React.FC<Props> = ({ image, sourceUrl, onClose, onNext, onPrev, onRepeat, onDelete, hasNext, hasPrev }) => {
   const [scale, setScale] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -72,10 +73,18 @@ const ImageDetailDialog: React.FC<Props> = ({ image, sourceUrl, onClose, onNext,
                  onClose();
              }
           }
+          
+          // Delete: Delete Job
+          if (e.key === 'Delete' || e.key === 'Backspace') {
+              if (onDelete && isGeneratedImage(image)) {
+                  onDelete(image);
+                  onClose();
+              }
+          }
       };
       window.addEventListener('keydown', handleKeyDown);
       return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [image, hasNext, hasPrev, onNext, onPrev, onClose, onRepeat, sourceUrl]);
+  }, [image, hasNext, hasPrev, onNext, onPrev, onClose, onRepeat, onDelete, sourceUrl]);
 
   if (!image) return null;
 
@@ -134,6 +143,18 @@ const ImageDetailDialog: React.FC<Props> = ({ image, sourceUrl, onClose, onNext,
                  >
                      <RefreshCw size={16} />
                      <span className="text-xs font-bold">Repeat</span>
+                 </button>
+            )}
+
+            {/* Delete Button */}
+            {onDelete && isGeneratedImage(image) && (
+                 <button 
+                    onClick={() => { onDelete(image); onClose(); }}
+                    className="flex items-center gap-2 bg-slate-800 hover:bg-red-600 text-slate-400 hover:text-white px-3 py-1.5 rounded-lg border border-slate-700 hover:border-red-500 transition-colors"
+                    title="Delete this job and result (Del)"
+                 >
+                     <Trash2 size={16} />
+                     <span className="text-xs font-bold">Delete Job</span>
                  </button>
             )}
 

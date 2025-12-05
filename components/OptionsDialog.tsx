@@ -1,5 +1,3 @@
-
-
 import React, { useState, useMemo, useRef } from 'react';
 import { X, User, Zap, Map as MapIcon, Clock, Sparkles, Monitor, Package, Sliders, Palette, Lightbulb, Camera, Smile, Cloud, Brush, Calculator, Ban, Shirt, CheckSquare, Square, Layers, Activity, Droplets, Download, Upload, Check, Sword, Lock } from 'lucide-react';
 import { AppOptions, GlobalConfig } from '../types';
@@ -338,7 +336,7 @@ const OptionsDialog: React.FC<Props> = ({ isOpen, onClose, options, setOptions, 
                { id: 'ITEMS', label: 'Items', icon: Package },
                { id: 'ACTION', label: 'Actions', icon: Activity },
                { id: 'DECOR', label: 'Decorations', icon: Brush },
-               { id: 'SKIN_FX', label: 'Skin Effects', icon: Droplets },
+               { id: 'SKIN_FX', label: 'Skin & Fur', icon: Droplets },
                { id: 'TECH', label: 'Technology', icon: Zap },
                { id: 'ENV', label: 'Environment', icon: MapIcon },
                { id: 'TIME', label: 'Time of Day', icon: Clock },
