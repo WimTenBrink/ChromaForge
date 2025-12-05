@@ -1,5 +1,3 @@
-
-
 import { AppOptions } from "../types";
 import { DND_CLASSES } from "../constants";
 
@@ -233,19 +231,24 @@ export const buildPromptFromCombo = (combo: any): string => {
       
       if (shouldInclude(combo.clothes)) {
           // Check for implied nudity keywords to trigger safety instruction
-          // Using lowercase check for robustness against combined strings "Option + Option"
           const clothesLower = String(combo.clothes).toLowerCase();
           const isImpliedNude = 
               clothesLower.includes("nude") || 
               clothesLower.includes("body paint") || 
               clothesLower.includes("strategic") ||
               clothesLower.includes("sheet") ||
-              clothesLower.includes("towel");
+              clothesLower.includes("towel") ||
+              clothesLower.includes("covered in") ||
+              clothesLower.includes("draped") ||
+              clothesLower.includes("bandages") ||
+              clothesLower.includes("silhouette") ||
+              clothesLower.includes("sheer");
           
           if (isImpliedNude) {
              requiresNudityCoverage = true;
-             // Use "Appearance" or "Concept" instead of "Clothes" to prevent AI from forcing fabrics
-             details.push(`- Body Concept/Attire: ${combo.clothes} (DO NOT ADD EXTRA CLOTHING)`);
+             details.push(`- Attire: NUDE / UNCLOTHED.`);
+             details.push(`- Concept: ${combo.clothes}`);
+             details.push(`- IMPORTANT: The character is NUDE. The '${combo.clothes}' is the ONLY covering. Do NOT add shirts, pants, underwear, bras, or standard clothing.`);
           } else {
              details.push(`- Clothes/Attire: ${combo.clothes}`);
           }
@@ -256,6 +259,7 @@ export const buildPromptFromCombo = (combo: any): string => {
           details.push(`- Restraints/Bondage: ${combo.bondage}`);
           // Bondage often implies partial nudity or specific safety overrides
           requiresNudityCoverage = true;
+          details.push(`- Bondage Context: Ensure the restraints (${combo.bondage}) are clearly visible. To facilitate this, remove standard clothing. The character should be NUDE or 'implied nude' to show the ropes/chains on the skin.`);
       }
 
       if (shouldInclude(combo.shoes)) details.push(`- Shoes: ${combo.shoes}`);
@@ -327,7 +331,7 @@ export const buildPromptFromCombo = (combo: any): string => {
   }
 
   const coverageInstruction = requiresNudityCoverage 
-    ? "7. CONTENT SAFETY & AESTHETICS: The user has requested an artistic concept involving nudity, bondage, or implied nudity. DO NOT add clothes if the option specifies 'Nude' or 'Bondage' unless explicitly part of the request. HOWEVER, you MUST maintain a 'Safety' standard by using artistic techniques: use chiaroscuro (heavy shadows), strategic placement of hair/ropes/chains, environmental elements, or camera angles to obscure genitals and nipples naturally. The result should be a high-quality, tasteful, artistic masterpiece, not pornography."
+    ? "7. CONTENT SAFETY: The user has explicitly requested ARTISTIC NUDITY or Bondage. Do NOT enable clothing filters. The character MUST BE NUDE. Use chiaroscuro (shadows), camera angles, hair, or objects to obscure genitals/nipples naturally for safety compliance, but DO NOT ADD CLOTHES."
     : "";
 
   return `

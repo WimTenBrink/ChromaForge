@@ -1,4 +1,3 @@
-
 {
   "speciesGroups": {
     "Star Wars": [
@@ -12,6 +11,21 @@
     ],
     "Human/Animal Hybrids": [
       "As-Is (Skip)", "Centaur", "Satyr", "Faun", "Onocentaur", "Hippocamp", "Ipotane", "Minotaur", "Sphinx", "Manticore", "Lamia", "Hecatonchires", "Karakoncolos", "Blemmyes", "Cynocephaly"
+    ],
+    "Harry Potter / Wizarding World": [
+      "As-Is (Skip)", "Centaur (HP Style)", "Giant", "Goblin", "House Elf", "Merperson", "Veela", "Werewolf (HP Style)"
+    ],
+    "Game of Thrones": [
+      "As-Is (Skip)", "Children of the Forest", "Giant (Westeros)", "Stone Man", "White Walker"
+    ],
+    "Marvel / DC Universe": [
+      "As-Is (Skip)", "Amazonian", "Asgardian", "Atlantean", "Cyborg", "Kree", "Kryptonian", "Martian", "Mutant", "Skrull", "Symbiote Host"
+    ],
+    "Fallout": [
+      "As-Is (Skip)", "Ghoul", "Super Mutant", "Synth (Gen 1)", "Synth (Gen 2)", "Synth (Gen 3)"
+    ],
+    "The Witcher": [
+      "As-Is (Skip)", "Doppler", "Dryad", "Godling", "Higher Vampire", "Witcher (Mutated Human)"
     ],
     "Pulp Fantasy": [
       "As-Is (Skip)", "Amazon Warrior", "Great Ape (Mangani)", "Lost World Dinosaur", "Pictish Savage", "Serpent Man", "Frost Giant", "Caveman"
@@ -44,6 +58,24 @@
     ],
     "Conan / Hyborian Age": [
         "As-Is (Skip)", "Aquilonian Palace", "Bazaar of Shadizar", "Cimmerian Highlands (Snowy)", "Crypt of the Sorcerer", "Pictish Wilderness", "Pirate Ship Deck", "Stygian Desert Tomb", "Tavern in Zamora", "Temple of Set", "Tower of the Elephant"
+    ],
+    "Harry Potter / Wizarding World": [
+        "As-Is (Skip)", "Chamber of Secrets", "Diagon Alley", "Forbidden Forest", "Hogsmeade Village", "Hogwarts Castle Exterior", "Hogwarts Great Hall", "Ministry of Magic Atrium", "Platform 9 3/4", "Room of Requirement"
+    ],
+    "Game of Thrones": [
+        "As-Is (Skip)", "Beyond the Wall", "Dragonstone Beach", "Iron Throne Room", "King's Landing Streets", "The Eyrie Sky Cell", "The Wall (Ice)", "Winterfell Courtyard"
+    ],
+    "Marvel / DC Universe": [
+        "As-Is (Skip)", "Asgard Rainbow Bridge", "Avengers Tower", "Batcave", "Daily Planet Office", "Fortress of Solitude", "Gotham City Rooftops", "S.H.I.E.L.D. Helicarrier", "Wakanda Golden City", "X-Mansion"
+    ],
+    "Fallout": [
+        "As-Is (Skip)", "Brotherhood Airship", "Diamond City", "Glowing Sea", "Red Rocket Station", "Vault Interior", "Wasteland Ruins"
+    ],
+    "The Witcher": [
+        "As-Is (Skip)", "Beauclair Palace", "Kaer Morhen Fortress", "Novigrad Harbor", "Skellige Mountains", "Velen Swamp"
+    ],
+    "Cyberpunk 2077": [
+        "As-Is (Skip)", "Afterlife Bar", "Arasaka Tower", "Badlands Desert", "Megabuilding Atrium", "Night City Streets", "Ripperdoc Clinic"
     ],
     "Dungeons & Dragons": [
         "As-Is (Skip)", "Ancient Ruins", "Bustling Medieval Market", "Dark Dungeon", "Dragon's Lair", "Dwarven Forge", "Elven Tree City", "Enchanted Forest", "Haunted Graveyard", "Magic Academy Library", "Mystical Swamp", "Royal Throne Room", "Tavern Interior", "Underdark Cavern", "Wizard's Tower"
@@ -91,6 +123,9 @@
       "Druid": ["As-Is (Skip)", "Club", "Scimitar", "Sickle", "Wooden Staff"]
   },
   "itemGroups": {
+    "Franchise Props": [
+        "As-Is (Skip)", "Batarang", "Captain's Shield", "Golden Snitch", "Laser Rifle", "Lightsaber", "Magic Wand", "Mjolnir Hammer", "Pip-Boy", "Plasma Rifle", "Power Sword", "Witcher Medallion"
+    ],
     "Pulp Fantasy Weapons": [
       "As-Is (Skip)", "Atlantean Greatsword", "Battleaxe", "Bone Knife", "Cimmerian Broadsword", "Crude Stone Spear", "Jungle Bow & Arrow", "Obsidian Dagger", "Wooden Club"
     ],
@@ -114,6 +149,24 @@
     ]
   },
   "attireGroups": {
+    "Harry Potter / Wizarding World": [
+        "As-Is (Skip)", "Death Eater Robes", "Hogwarts School Robes", "Professor Robes", "Quidditch Uniform", "Yule Ball Gown"
+    ],
+    "Game of Thrones": [
+        "As-Is (Skip)", "Dothraki Leather Vest", "Lannister Plate Armor", "Maester Robes", "Night's Watch Black Furs", "Stark Leather & Fur", "Targaryen Royal Gown", "Wildling Furs"
+    ],
+    "Marvel / DC Universe": [
+        "As-Is (Skip)", "Cape and Cowl", "Sorcerer Supreme Robes", "Superhero Spandex Suit", "Symbiote Suit", "Tactical Hero Armor", "Vibranium Suit"
+    ],
+    "Fallout": [
+        "As-Is (Skip)", "Brotherhood Scribe Robes", "NCR Ranger Duster", "Power Armor (T-60)", "Raider Scrap Armor", "Vault Jumpsuit (Blue)"
+    ],
+    "The Witcher": [
+        "As-Is (Skip)", "Bard's Outfit", "Nilfgaardian Plate Armor", "School of the Bear Heavy Armor", "School of the Cat Armor", "Sorceress Elegant Gown", "Witcher Leather Armor"
+    ],
+    "Cyberpunk 2077": [
+        "As-Is (Skip)", "Arasaka Corp Suit", "Edgerunner Jacket", "MaxTac Armor", "Netrunner Suit", "Nomad Leathers", "Street Kid Casual"
+    ],
     "Tarzan / Jungle": [
         "As-Is (Skip)", "Distressed Safari Outfit", "Jungle Rags", "Leopard Skin Loincloth", "Tribal Chieftain Regalia", "Vine-Covered Camouflage", "Woven Grass Skirt"
     ],
@@ -125,12 +178,14 @@
     "Uniforms": ["As-Is (Skip)", "Chef's Whites", "Lab Coat", "Maid Outfit", "Military Fatigues", "Nurse Uniform", "Pilot Suit", "Police Uniform", "School Uniform"],
     "Armor / Fantasy": ["As-Is (Skip)", "Chainmail", "Cybernetic Suit", "Leather Armor", "Paladin Armor", "Plate Mail", "Power Armor", "Thief Leathers", "Wizard Robes"],
     "Beach / Swim": ["As-Is (Skip)", "Bikini", "One-Piece Swimsuit", "Sarong", "Swim Trunks", "Wetsuit"],
+    "Bodypaint": [
+      "As-Is (Skip)", "Body Paint (Abstract)", "Body Paint (Camouflage)", "Body Paint (Floral)", "Body Paint (Gold)", "Body Paint (Latex Style)", "Body Paint (Metallic)", "Body Paint (Neon/Glow)", "Body Paint (Scales)", "Body Paint (Silver)", "Body Paint (Tiger/Zebra)", "Body Paint (Tribal)", "Covered in Clay", "Covered in Glitter", "Covered in Oil", "Covered in Slime"
+    ],
+    "Veiled / Sheer": [
+      "As-Is (Skip)", "Bandages (Medical)", "Bandages (Mummy)", "Draped in Fur Stole", "Draped in Sheet", "Draped in Silk", "Draped in Tulle", "Fishnet Bodysuit", "Gossamer Wrap", "Micro-Bikini", "Net Dress", "Ribbon Wrapping", "Sheer Lace Lingerie", "Sheer Robe", "Sheer Silk Veil", "Translucent Plastic Raincoat", "Wet White Shirt"
+    ],
     "Implied Nudity / Artistic": [
-      "As-Is (Skip)", "Backlit Silhouette", "Bandages (Mummy)", "Body Paint (Floral)", "Body Paint (Gold)", "Body Paint (Silver)", "Body Paint (Tribal)", 
-      "Covered in Blood", "Covered in Clay", "Covered in Mud", "Covered in Oil", "Covered in Slime", "Draped in Fur Stole", 
-      "Draped in Sheet", "Draped in Silk", "Flowers & Vines Coverage", "Foam/Bubbles Coverage", "Fog/Mist Obscured", 
-      "Long Hair Coverage", "Ribbon Wrapping", "Shadows (Chiaroscuro)", "Sheer Lace Lingerie", "Sheer Silk Veil", 
-      "Strategic Jewelry", "Strategic Object Placement", "Translucent Plastic", "Wet White Shirt"
+      "As-Is (Skip)", "Backlit Silhouette", "Covered in Flowers", "Covered in Jewels", "Covered in Money", "Flowers & Vines Coverage", "Foam/Bubbles Coverage", "Fog/Mist Obscured", "Hair Coverage (Godiva)", "Hands Coverage", "Shadows (Chiaroscuro)", "Strategic Object Placement", "Water Submersion Distortion"
     ]
   },
   "bondageGroups": {
@@ -163,10 +218,11 @@
     "Makeup & Paint": ["As-Is (Skip)", "Camouflage Paint", "Clown Makeup", "Geisha Makeup", "Gold Dust", "Heavy Eyeliner", "Red Lipstick", "War Paint"]
   },
   "skinConditionGroups": {
-    "Face Coverage": ["As-Is (Skip)", "Blood on Face", "Dried Blood on Face", "Dried Mud on Face", "Dust on Face", "Mud on Face", "Oil/Grease on Face", "Soot/Ash on Face", "Sweat on Face", "War Paint on Face"],
-    "Arms Coverage": ["As-Is (Skip)", "Blood on Arms", "Dried Blood on Arms", "Dried Mud on Arms", "Dust on Arms", "Mud on Arms", "Oil/Grease on Arms", "Soot/Ash on Arms", "Sweat on Arms", "War Paint on Arms"],
-    "Legs Coverage": ["As-Is (Skip)", "Blood on Legs", "Dried Blood on Legs", "Dried Mud on Legs", "Dust on Legs", "Mud on Legs", "Muddy Boots/Shin", "Oil/Grease on Legs", "Soot/Ash on Legs", "Sweat on Legs", "War Paint on Legs"],
-    "Whole Body Coverage": ["As-Is (Skip)", "Covered in Alien Goo", "Covered in Blood", "Covered in Dried Blood", "Covered in Dried Mud", "Covered in Dust", "Covered in Mud", "Covered in Oil/Grease", "Covered in Slime", "Covered in Soot/Ash", "Drenched in Water"]
+    "Face Coverage": ["As-Is (Skip)", "Blood on Face", "Bruised Face", "Cut on Cheek", "Dried Blood on Face", "Dried Mud on Face", "Dust on Face", "Freckles (Heavy)", "Mud on Face", "Oil/Grease on Face", "Rosy Cheeks", "Scarred Face", "Soot/Ash on Face", "Sunburn on Face", "Sweat on Face", "War Paint on Face"],
+    "Torso Coverage": ["As-Is (Skip)", "Abs Definition (Oiled)", "Blood on Chest/Stomach", "Bruised Torso", "Chest Hair", "Claw Marks on Torso", "Dirt/Grime on Torso", "Dried Blood on Torso", "Dried Mud on Torso", "Glowing Runes on Torso", "Mud on Torso", "Oil/Grease on Torso", "Scarred Torso", "Soot/Ash on Torso", "Sunburned Torso", "Sweat on Torso", "Tattooed Torso", "War Paint on Torso"],
+    "Arms Coverage": ["As-Is (Skip)", "Blood on Arms", "Bruised Arms", "Dried Blood on Arms", "Dried Mud on Arms", "Dust on Arms", "Goosebumps", "Hairy Arms", "Mud on Arms", "Muscular Veins", "Oil/Grease on Arms", "Scarred Arms", "Soot/Ash on Arms", "Sweat on Arms", "Tattooed Arms", "War Paint on Arms"],
+    "Legs Coverage": ["As-Is (Skip)", "Blood on Legs", "Bruised Legs", "Cellulite", "Dried Blood on Legs", "Dried Mud on Legs", "Dust on Legs", "Hairy Legs", "Mud on Legs", "Muddy Boots/Shin", "Oil/Grease on Legs", "Scarred Legs", "Soot/Ash on Legs", "Stocking Lines (Tan)", "Sweat on Legs", "War Paint on Legs"],
+    "Whole Body Coverage": ["As-Is (Skip)", "Covered in Alien Goo", "Covered in Blood", "Covered in Dried Blood", "Covered in Dried Mud", "Covered in Dust", "Covered in Mud", "Covered in Oil/Grease", "Covered in Slime", "Covered in Soot/Ash", "Cybernetic Seams", "Drenched in Water", "Glowing Veins", "Marble Skin Texture", "Porcelain Skin Texture", "Stone Skin Texture", "Wet Skin"]
   },
   "lists": {
     "gender": ["As-Is (Skip)", "Androgynous", "Female", "Intersex", "Male", "Non-binary"],

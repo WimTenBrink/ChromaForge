@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, ZoomIn, ZoomOut, Maximize, Move, ChevronLeft, ChevronRight, Eye, EyeOff } from 'lucide-react';
+import { X, ZoomIn, ZoomOut, Maximize, Move, ChevronLeft, ChevronRight, Eye, EyeOff, RefreshCw } from 'lucide-react';
 import { GeneratedImage } from '../types';
 
 interface ViewableImage {
@@ -17,11 +17,12 @@ interface Props {
   onClose: () => void;
   onNext?: () => void;
   onPrev?: () => void;
+  onRepeat?: (img: GeneratedImage) => void;
   hasNext?: boolean;
   hasPrev?: boolean;
 }
 
-const ImageDetailDialog: React.FC<Props> = ({ image, sourceUrl, onClose, onNext, onPrev, hasNext, hasPrev }) => {
+const ImageDetailDialog: React.FC<Props> = ({ image, sourceUrl, onClose, onNext, onPrev, onRepeat, hasNext, hasPrev }) => {
   const [scale, setScale] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -53,13 +54,28 @@ const ImageDetailDialog: React.FC<Props> = ({ image, sourceUrl, onClose, onNext,
   useEffect(() => {
       const handleKeyDown = (e: KeyboardEvent) => {
           if (!image) return;
+          
           if (e.key === 'ArrowRight' && hasNext && onNext) onNext();
           if (e.key === 'ArrowLeft' && hasPrev && onPrev) onPrev();
           if (e.key === 'Escape') onClose();
+          
+          // Space: Toggle Original/Generated
+          if (e.code === 'Space') {
+             e.preventDefault(); // Prevent scroll
+             setShowOriginal(prev => !prev);
+          }
+
+          // Enter: Repeat Job
+          if (e.key === 'Enter') {
+             if (onRepeat && isGeneratedImage(image)) {
+                 onRepeat(image);
+                 onClose();
+             }
+          }
       };
       window.addEventListener('keydown', handleKeyDown);
       return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [image, hasNext, hasPrev, onNext, onPrev, onClose]);
+  }, [image, hasNext, hasPrev, onNext, onPrev, onClose, onRepeat, sourceUrl]);
 
   if (!image) return null;
 
@@ -89,6 +105,10 @@ const ImageDetailDialog: React.FC<Props> = ({ image, sourceUrl, onClose, onNext,
     setIsDragging(false);
   };
 
+  const isGeneratedImage = (img: any): img is GeneratedImage => {
+      return img && 'sourceImageId' in img && 'optionsSnapshot' in img;
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-sm">
       <div 
@@ -105,6 +125,18 @@ const ImageDetailDialog: React.FC<Props> = ({ image, sourceUrl, onClose, onNext,
           </div>
           <div className="flex items-center gap-4">
             
+            {/* Repeat Button */}
+            {onRepeat && isGeneratedImage(image) && (
+                 <button 
+                    onClick={() => { onRepeat(image); onClose(); }}
+                    className="flex items-center gap-2 bg-slate-800 hover:bg-emerald-600 text-slate-400 hover:text-white px-3 py-1.5 rounded-lg border border-slate-700 hover:border-emerald-500 transition-colors"
+                    title="Repeat this job (Enter)"
+                 >
+                     <RefreshCw size={16} />
+                     <span className="text-xs font-bold">Repeat</span>
+                 </button>
+            )}
+
             {/* Show Original Toggle */}
             {sourceUrl && (
                 <label className="flex items-center gap-2 cursor-pointer bg-slate-800 rounded-lg px-3 py-1.5 border border-slate-700 hover:border-emerald-500/50 transition-colors select-none">
@@ -116,7 +148,7 @@ const ImageDetailDialog: React.FC<Props> = ({ image, sourceUrl, onClose, onNext,
                     />
                     {showOriginal ? <Eye size={16} className="text-emerald-400" /> : <EyeOff size={16} className="text-slate-400" />}
                     <span className={`text-xs font-bold ${showOriginal ? 'text-emerald-400' : 'text-slate-400'}`}>
-                        Show Original
+                        Show Original (Space)
                     </span>
                 </label>
             )}
@@ -133,6 +165,7 @@ const ImageDetailDialog: React.FC<Props> = ({ image, sourceUrl, onClose, onNext,
             <button 
                 onClick={onClose} 
                 className="p-2 bg-slate-800 hover:bg-red-900/50 text-slate-400 hover:text-white rounded-lg transition-colors"
+                title="Close (Esc)"
             >
                 <X size={20} />
             </button>

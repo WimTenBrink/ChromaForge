@@ -109,6 +109,7 @@ export interface ImageAnalysis {
 export interface SourceImage {
     id: string;
     file: File | null;
+    originalUploadName?: string; // Track original filename for duplicate detection
     base64Data: string;
     name: string;
     type: string;

@@ -1,5 +1,3 @@
-
-
 import { AppOptions } from "./types";
 
 export const DEFAULT_OPTIONS: AppOptions = {
@@ -54,7 +52,7 @@ export const DEFAULT_OPTIONS: AppOptions = {
   combinedGroups: []
 };
 
-export const MAX_CONCURRENT_JOBS = 3;
+export const MAX_CONCURRENT_JOBS = 5;
 
 export const DND_CLASSES = [
     'Fighter', 

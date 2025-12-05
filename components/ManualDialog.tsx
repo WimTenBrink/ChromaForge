@@ -39,7 +39,7 @@ The sidebar is organized into tabs using icon navigation at the top:
     *   Once named, it moves to the Jobs/Queue.
 *   **Jobs (Spinner Icon)**:
     *   Shows jobs currently being processed by the AI.
-    *   Maximum concurrent jobs: **3**.
+    *   Maximum concurrent jobs: **5**.
 *   **Queue (Layers Icon)**:
     *   Jobs waiting for their turn.
     *   Processed from top to bottom.

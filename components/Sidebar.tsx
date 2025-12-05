@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Job, SourceImage, FailedItem, ValidationJob } from '../types';
-import { Check, Trash2, RefreshCw, AlertTriangle, Ban, XCircle, Loader2, Layers, Image as ImageIcon, ScanSearch, RotateCcw } from 'lucide-react';
+import { Check, Trash2, RefreshCw, AlertTriangle, Ban, XCircle, Loader2, Layers, Image as ImageIcon, ScanSearch, RotateCcw, Eraser } from 'lucide-react';
 
 interface Props {
   jobs: Job[];
@@ -17,6 +17,11 @@ interface Props {
   onDeleteSource: (id: string) => void;
   onDeleteAllBlocked: (items: FailedItem[]) => void;
   onViewJob?: (job: Job | FailedItem) => void;
+  // New props
+  onRemoveFinishedUploads: () => void;
+  onEmptyValidation: () => void;
+  onEmptyJobQueue: () => void;
+  onEmptyFailed: (items: FailedItem[]) => void;
 }
 
 type TabType = 'UPLOADS' | 'VALIDATING' | 'JOBS' | 'QUEUE' | 'FAILED' | 'PROHIBITED' | 'BLOCKED';
@@ -35,7 +40,11 @@ const Sidebar: React.FC<Props> = ({
   onDeleteJob,
   onDeleteSource,
   onDeleteAllBlocked,
-  onViewJob
+  onViewJob,
+  onRemoveFinishedUploads,
+  onEmptyValidation,
+  onEmptyJobQueue,
+  onEmptyFailed
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>('UPLOADS');
 
@@ -84,7 +93,8 @@ const Sidebar: React.FC<Props> = ({
       // Logic: 
       // 1. Must be READY (Validating done)
       // 2. No QUEUED or PROCESSING jobs for this source
-      // 3. Must have had at least one job (or completed ones)
+      // 3. No FAILED or PROHIBITED items for this source (job is technically not 'finished' if failed)
+      // 4. Must have had at least one job (or completed ones) - handled implicitly if valid
       
       const relatedJobs = jobs.filter(j => j.sourceImageId === sourceId);
       const active = relatedJobs.filter(j => j.status === 'QUEUED' || j.status === 'PROCESSING');
@@ -92,12 +102,26 @@ const Sidebar: React.FC<Props> = ({
       const isValidating = validationQueue.some(v => v.sourceImageId === sourceId);
       if (isValidating) return '';
 
-      // If no active jobs, and it exists in registry...
-      if (active.length === 0 && !isValidating) {
+      const hasFailed = failedItems.some(f => f.sourceImageId === sourceId && (
+           // Check if it's in failed or prohibited list (retryable). Blocked ones are "dead" so technically finished?
+           // The user said "Jobs in Failed or Ban queue are not finished"
+           !f.error.toLowerCase().includes('blocked') && f.retryCount < 3 // Approximation of non-dead
+      ));
+
+      if (hasFailed) return ''; // Still has actionable items
+
+      // If no active jobs, no validating, no pending failures...
+      if (active.length === 0) {
           return 'border-4 border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.5)]';
       }
       return 'border border-slate-800';
   };
+
+  // Calculate if there are any finished uploads to enable the button
+  const hasFinishedUploads = useMemo(() => {
+      return uploads.some(src => getUploadStatusClass(src.id).includes('border-emerald-500'));
+  }, [uploads, jobs, validationQueue, failedItems]);
+
 
   // --- Render Helpers ---
 
@@ -162,11 +186,34 @@ const Sidebar: React.FC<Props> = ({
     </div>
   );
 
+  const renderEmptyButton = (label: string, onClick: () => void, disabled = false, colorClass = "text-slate-400 hover:text-red-400", borderClass = "border-slate-700 hover:border-red-900/50") => (
+      <button 
+        onClick={onClick}
+        disabled={disabled}
+        className={`w-full mb-4 flex items-center justify-center gap-2 py-2 rounded transition-colors text-xs font-bold uppercase tracking-wider border
+            ${disabled 
+                ? 'bg-slate-900 border-slate-800 text-slate-700 cursor-not-allowed' 
+                : `bg-slate-800 hover:bg-slate-700 ${colorClass} ${borderClass}`
+            }`}
+      >
+        <Eraser size={14} /> {label}
+      </button>
+  );
+
   const renderTabContent = () => {
     switch(activeTab) {
         case 'UPLOADS':
             return (
                 <div className="p-4">
+                    {uploads.length > 0 && (
+                        renderEmptyButton(
+                            "Remove Finished", 
+                            onRemoveFinishedUploads, 
+                            !hasFinishedUploads,
+                            "text-emerald-400 hover:text-red-400", 
+                            "border-emerald-900/30 hover:border-red-900/50"
+                        )
+                    )}
                     {uploads.length === 0 && <p className="text-slate-600 text-xs italic text-center py-4">Drag images to upload</p>}
                     {uploads.map((src) => renderCard(
                         src.previewUrl, 
@@ -184,6 +231,7 @@ const Sidebar: React.FC<Props> = ({
         case 'VALIDATING':
             return (
                 <div className="p-4">
+                    {validationQueue.length > 0 && renderEmptyButton("Empty Queue", onEmptyValidation)}
                     {validationQueue.length === 0 && <p className="text-slate-700 text-xs italic text-center py-4">No images validating</p>}
                     {validationQueue.map(job => {
                         const src = sourceRegistry.get(job.sourceImageId);
@@ -221,6 +269,7 @@ const Sidebar: React.FC<Props> = ({
         case 'QUEUE':
             return (
                 <div className="p-4">
+                    {queuedJobs.length > 0 && renderEmptyButton("Empty Queue", onEmptyJobQueue)}
                     {queuedJobs.length === 0 && <p className="text-slate-700 text-xs italic text-center py-4">Queue empty</p>}
                     {queuedJobs.map(job => {
                         const src = sourceRegistry.get(job.sourceImageId);
@@ -241,14 +290,24 @@ const Sidebar: React.FC<Props> = ({
         case 'FAILED':
              return (
                 <div className="p-4">
-                    {failed.length > 0 && (
-                        <button 
-                            onClick={() => onRetryAll(failed)}
-                            className="w-full mb-4 flex items-center justify-center gap-2 py-2 bg-slate-800 hover:bg-orange-900/40 text-orange-400 hover:text-orange-200 border border-orange-900/50 rounded transition-colors text-xs font-bold uppercase tracking-wider"
-                        >
-                            <RotateCcw size={14} /> Retry All ({failed.length})
-                        </button>
-                    )}
+                    <div className="flex gap-2 mb-4">
+                        {failed.length > 0 && (
+                            <button 
+                                onClick={() => onRetryAll(failed)}
+                                className="flex-1 flex items-center justify-center gap-2 py-2 bg-slate-800 hover:bg-orange-900/40 text-orange-400 hover:text-orange-200 border border-orange-900/50 rounded transition-colors text-xs font-bold uppercase tracking-wider"
+                            >
+                                <RotateCcw size={14} /> Retry All
+                            </button>
+                        )}
+                        {failed.length > 0 && (
+                             <button 
+                                onClick={() => onEmptyFailed(failed)}
+                                className="flex-1 flex items-center justify-center gap-2 py-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 rounded transition-colors text-xs font-bold uppercase tracking-wider"
+                            >
+                                <Eraser size={14} /> Empty
+                            </button>
+                        )}
+                    </div>
                     {failed.length === 0 && <p className="text-slate-700 text-xs italic text-center py-4">No failed jobs</p>}
                     {failed.map(item => (
                         renderCard(
@@ -270,14 +329,24 @@ const Sidebar: React.FC<Props> = ({
         case 'PROHIBITED':
              return (
                 <div className="p-4">
-                     {prohibited.length > 0 && (
-                        <button 
-                            onClick={() => onRetryAll(prohibited)}
-                            className="w-full mb-4 flex items-center justify-center gap-2 py-2 bg-slate-800 hover:bg-red-900/40 text-red-400 hover:text-red-200 border border-red-900/50 rounded transition-colors text-xs font-bold uppercase tracking-wider"
-                        >
-                            <RotateCcw size={14} /> Retry All ({prohibited.length})
-                        </button>
-                    )}
+                     <div className="flex gap-2 mb-4">
+                        {prohibited.length > 0 && (
+                            <button 
+                                onClick={() => onRetryAll(prohibited)}
+                                className="flex-1 flex items-center justify-center gap-2 py-2 bg-slate-800 hover:bg-red-900/40 text-red-400 hover:text-red-200 border border-red-900/50 rounded transition-colors text-xs font-bold uppercase tracking-wider"
+                            >
+                                <RotateCcw size={14} /> Retry All
+                            </button>
+                        )}
+                        {prohibited.length > 0 && (
+                             <button 
+                                onClick={() => onEmptyFailed(prohibited)}
+                                className="flex-1 flex items-center justify-center gap-2 py-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 rounded transition-colors text-xs font-bold uppercase tracking-wider"
+                            >
+                                <Eraser size={14} /> Empty
+                            </button>
+                        )}
+                    </div>
                     {prohibited.length === 0 && <p className="text-slate-700 text-xs italic text-center py-4">No violations</p>}
                     {prohibited.map(item => (
                         renderCard(

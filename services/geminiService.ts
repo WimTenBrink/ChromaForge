@@ -373,11 +373,11 @@ export const validateFileName = async (file: File | string, mimeTypeInput?: stri
         // Clean up double dashes or leading/trailing dashes resulting from removal
         cleanName = cleanName.replace(/[-_]{2,}/g, '-').replace(/^[-_]+|[-_]+$/g, '');
         
-        return cleanName.slice(0, 50) || "processed_image";
+        return `_${cleanName.slice(0, 50)}` || "_processed_image";
 
     } catch (error) {
         log('WARN', 'Validation Request Error', formatErrorForLog(error));
-        return "processed_image";
+        return "_processed_image";
     }
 };
 

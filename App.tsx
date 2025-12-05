@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Play, Pause, Settings, Terminal, Shield, ShieldCheck, Trash2, Loader2, Activity, Book, Upload, Save, FolderOpen, Plus, Search, RefreshCw, ArrowUpCircle, ArrowDownCircle, ArrowUp, ArrowDown, Calendar, Type, LayoutList } from 'lucide-react';
+import { Play, Pause, Settings, Terminal, Shield, ShieldCheck, Trash2, Loader2, Activity, Book, Upload, Save, FolderOpen, Plus, Search, RefreshCw, ArrowUpCircle, ArrowDownCircle, ArrowUp, ArrowDown, Calendar, Type, LayoutList, Grip, Monitor } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import OptionsDialog from './components/OptionsDialog';
 import ConsoleDialog from './components/ConsoleDialog';
@@ -30,6 +30,7 @@ const App: React.FC = () => {
   const [selectedSourceIds, setSelectedSourceIds] = useState<Set<string>>(new Set());
   const [sortBy, setSortBy] = useState<'TIMESTAMP' | 'FILENAME' | 'QUEUE'>('TIMESTAMP');
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC');
+  const [thumbnailSize, setThumbnailSize] = useState<'SMALL' | 'MEDIUM' | 'LARGE'>('SMALL');
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
@@ -305,9 +306,18 @@ const App: React.FC = () => {
     
     // 2. Add to Validation Queue first
     const newValidationJobs: ValidationJob[] = [];
+    const currentSources = Array.from(sourceRegistry.values());
     
     for (let i = 0; i < fileList.length; i++) {
         const file = fileList[i];
+        
+        // Check for duplicates by filename
+        const duplicate = currentSources.find((s: SourceImage) => s.originalUploadName === file.name);
+        if (duplicate) {
+            log('WARN', 'Skipping duplicate upload', { fileName: file.name });
+            continue;
+        }
+
         const sourceId = crypto.randomUUID();
         const base64 = await new Promise<string>((resolve) => {
             const reader = new FileReader();
@@ -321,6 +331,7 @@ const App: React.FC = () => {
         setSourceRegistry(prev => new Map(prev).set(sourceId, {
             id: sourceId,
             file,
+            originalUploadName: file.name, // Track original name
             base64Data: base64,
             name: "Analyzing...", // Placeholder
             type: file.type,
@@ -336,8 +347,14 @@ const App: React.FC = () => {
         });
     }
 
-    setValidationQueue(prev => [...prev, ...newValidationJobs]);
-    log('INFO', 'Added files to validation queue', { count: newValidationJobs.length });
+    if (newValidationJobs.length > 0) {
+        setValidationQueue(prev => [...prev, ...newValidationJobs]);
+        log('INFO', 'Added files to validation queue', { count: newValidationJobs.length });
+    } else {
+        if (fileList.length > 0) {
+           alert("No new files added. Duplicates were skipped.");
+        }
+    }
   };
 
   // --- Validation Loop ---
@@ -470,7 +487,7 @@ const App: React.FC = () => {
     // Check if we can start more jobs
     if (activeWorkers >= MAX_CONCURRENT_JOBS) return;
     
-    // Find next QUEUED job (Top to Bottom)
+    // Find next QUEUED job (Top to Bottom - FIFO)
     const nextJob = jobQueue.find(j => j.status === 'QUEUED');
     
     if (!nextJob) {
@@ -565,7 +582,9 @@ const App: React.FC = () => {
         retryCount: 0
       };
 
-      setJobQueue(prev => [newJob, ...prev]);
+      // Add to END of queue (Append)
+      setJobQueue(prev => [...prev, newJob]);
+      
       if (!isProcessing) setIsProcessing(true);
       log('INFO', 'Job Repeated', { sourceId });
   };
@@ -583,7 +602,9 @@ const App: React.FC = () => {
       
       if (item.originalJob) {
           const retryJob: Job = { ...(item.originalJob as Job), retryCount: item.retryCount + 1, status: 'QUEUED' };
-          // Add to top of queue for priority
+          // Add to top of queue for priority? Or end?
+          // Usually retries get priority, but user asked repeated jobs to go to end.
+          // Let's stick to adding retries to top for now as per previous logic, unless specified.
           setJobQueue(prev => [retryJob, ...prev]);
           if (!isProcessing) setIsProcessing(true);
       }
@@ -673,6 +694,47 @@ const App: React.FC = () => {
       });
   };
 
+  // --- Queue Emptying Logic ---
+  const handleRemoveFinishedUploads = () => {
+      // Finished means: No active jobs AND No pending validation AND No Failed jobs
+      const activeSourceIds = new Set<string>();
+      
+      jobQueue.forEach(j => activeSourceIds.add(j.sourceImageId));
+      validationQueue.forEach(v => activeSourceIds.add(v.sourceImageId));
+      
+      // Also check failed items
+      failedItems.forEach(f => {
+          if (f.retryCount < 3 && !f.error.toLowerCase().includes('blocked')) {
+             activeSourceIds.add(f.sourceImageId);
+          }
+      });
+
+      const finishedSources: string[] = [];
+      sourceRegistry.forEach((src, id) => {
+          if (!activeSourceIds.has(id)) {
+              finishedSources.push(id);
+          }
+      });
+
+      // Using the delete logic for cleanup
+      finishedSources.forEach(id => handleDeleteSource(id));
+      log('INFO', 'Removed finished uploads', { count: finishedSources.length });
+  };
+
+  const handleEmptyValidationQueue = () => {
+      setValidationQueue([]);
+  };
+
+  const handleEmptyJobQueue = () => {
+      // Only remove QUEUED jobs, keep PROCESSING
+      setJobQueue(prev => prev.filter(j => j.status === 'PROCESSING'));
+  };
+
+  const handleEmptyFailed = (items: FailedItem[]) => {
+      const idsToRemove = new Set(items.map(i => i.id));
+      setFailedItems(prev => prev.filter(f => !idsToRemove.has(f.id)));
+  };
+
   // --- Status Derivation ---
   let currentStatusTitle = 'SYSTEM IDLE';
   let currentStatusDetail = 'Ready to process queue.';
@@ -755,6 +817,21 @@ const App: React.FC = () => {
 
     return filtered;
   }, [generatedImages, selectedSourceIds, sortBy, sortOrder, sourceRegistry]);
+
+  // Thumbnail sizing style
+  const getThumbnailStyle = () => {
+      // Relative to gallery container (80vw)
+      // Small: ~20%, Medium: ~35%, Large: ~50%
+      switch (thumbnailSize) {
+          case 'MEDIUM':
+              return { width: '32%', maxHeight: 'auto' };
+          case 'LARGE':
+              return { width: '48%', maxHeight: 'auto' };
+          case 'SMALL':
+          default:
+              return { width: '19%', maxHeight: 'auto' };
+      }
+  };
 
   return (
     <div 
@@ -935,6 +1012,10 @@ const App: React.FC = () => {
               onDeleteSource={handleDeleteSource}
               onDeleteAllBlocked={handleDeleteAllBlocked}
               onViewJob={setViewedJob}
+              onRemoveFinishedUploads={handleRemoveFinishedUploads}
+              onEmptyValidation={handleEmptyValidationQueue}
+              onEmptyJobQueue={handleEmptyJobQueue}
+              onEmptyFailed={handleEmptyFailed}
             />
         </div>
 
@@ -957,6 +1038,14 @@ const App: React.FC = () => {
 
                {/* Right: Controls */}
                <div className="flex items-center gap-4">
+                   {/* Thumbnail Size Selector */}
+                   <div className="flex items-center bg-slate-800 rounded p-1 border border-slate-700">
+                       <span className="px-2 text-[10px] uppercase font-bold text-slate-500 flex items-center gap-1"><Grip size={12}/> Size:</span>
+                       <button onClick={() => setThumbnailSize('SMALL')} className={`p-1 rounded ${thumbnailSize === 'SMALL' ? 'bg-slate-600 text-white' : 'text-slate-400 hover:text-white'}`}>S</button>
+                       <button onClick={() => setThumbnailSize('MEDIUM')} className={`p-1 rounded ${thumbnailSize === 'MEDIUM' ? 'bg-slate-600 text-white' : 'text-slate-400 hover:text-white'}`}>M</button>
+                       <button onClick={() => setThumbnailSize('LARGE')} className={`p-1 rounded ${thumbnailSize === 'LARGE' ? 'bg-slate-600 text-white' : 'text-slate-400 hover:text-white'}`}>L</button>
+                   </div>
+
                    {/* Sort Controls */}
                    <div className="flex items-center bg-slate-800 rounded p-1 border border-slate-700">
                         <span className="px-2 text-[10px] uppercase font-bold text-slate-500">Sort:</span>
@@ -1028,13 +1117,13 @@ const App: React.FC = () => {
                             <div 
                                 key={img.id} 
                                 className="group relative bg-slate-900 rounded-lg overflow-hidden border border-slate-800 shadow-md hover:shadow-emerald-500/10 transition-all flex items-center justify-center"
-                                style={{ flexGrow: 0 }}
+                                style={{ flexGrow: 0, ...getThumbnailStyle() }}
                             >
-                                <div className="relative" style={{ maxWidth: '400px', maxHeight: '400px' }}>
+                                <div className="relative w-full h-full">
                                     <img 
                                         src={img.url} 
                                         alt="generated" 
-                                        className="max-w-[400px] max-h-[400px] w-auto h-auto object-contain cursor-zoom-in"
+                                        className="w-full h-auto object-contain cursor-zoom-in"
                                         loading="lazy"
                                         onClick={() => setViewedImage(img)}
                                     />
@@ -1120,6 +1209,7 @@ const App: React.FC = () => {
         onClose={() => setViewedImage(null)}
         onNext={handleNextImage}
         onPrev={handlePrevImage}
+        onRepeat={handleRepeatJob}
         hasNext={viewedImage && 'id' in viewedImage ? generatedImages.findIndex(i => i.id === viewedImage.id) < generatedImages.length - 1 : false}
         hasPrev={viewedImage && 'id' in viewedImage ? generatedImages.findIndex(i => i.id === viewedImage.id) > 0 : false}
       />
