@@ -323,7 +323,8 @@ const App: React.FC = () => {
             previewUrl,
             status: 'VALIDATING',
             activityLog: [],
-            duplicateCount: 0
+            duplicateCount: 0,
+            priorityCount: 0
         }));
 
         newValidationJobs.push({
@@ -450,22 +451,67 @@ const App: React.FC = () => {
         // This ensures the selected source's jobs are executed next
         return [...sourceJobs, ...otherJobs];
     });
+
+    // NEW: Increment priority count
+    setSourceRegistry((prev) => {
+        const next = new Map<string, SourceImage>(prev);
+        const src = next.get(sourceId);
+        if (src) {
+            next.set(sourceId, { ...src, priorityCount: (src.priorityCount || 0) + 1 });
+        }
+        return next;
+    });
+
     log('INFO', 'Prioritized source', { sourceId });
   };
 
-  const autoDownloadImage = (imageUrl: string, originalFilename: string, optionsSummary: string) => {
-      // Determine ext based on options.outputFormat
-      let ext = 'png';
-      if (options.outputFormat === 'image/jpeg') ext = 'jpg';
-      // Use originalFilename which has already been generated (e.g., 'elf-warrior_001')
-      const filename = `${originalFilename}.${ext}`;
-      
-      const link = document.createElement('a');
-      link.href = imageUrl;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+  const autoDownloadImage = (imageUrl: string, originalFilename: string) => {
+      try {
+          // Robust extension detection from Base64 MIME
+          const mimeMatch = imageUrl.match(/data:(image\/[a-zA-Z+]+);base64,/);
+          let mime = mimeMatch ? mimeMatch[1] : 'image/png';
+          let ext = 'png';
+          if (mime === 'image/jpeg') ext = 'jpg';
+          if (mime === 'image/webp') ext = 'webp';
+
+          // Convert to Blob for reliable large file download
+          const base64Data = imageUrl.split(',')[1];
+          const byteCharacters = atob(base64Data);
+          const byteArrays = [];
+          
+          for (let offset = 0; offset < byteCharacters.length; offset += 512) {
+              const slice = byteCharacters.slice(offset, offset + 512);
+              const byteNumbers = new Array(slice.length);
+              for (let i = 0; i < slice.length; i++) {
+                  byteNumbers[i] = slice.charCodeAt(i);
+              }
+              const byteArray = new Uint8Array(byteNumbers);
+              byteArrays.push(byteArray);
+          }
+          
+          const blob = new Blob(byteArrays, { type: mime });
+          const url = URL.createObjectURL(blob);
+
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `${originalFilename}.${ext}`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          
+          // Cleanup URL object
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+      } catch (e) {
+          console.error("Auto-download failed", e);
+          // Simple Fallback
+          const link = document.createElement('a');
+          link.href = imageUrl;
+          link.download = `${originalFilename}.png`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+      }
   };
   
   const toggleProcessing = () => {
@@ -519,8 +565,20 @@ const App: React.FC = () => {
         // Use source analysis title if available, else filename
         const title = source.analysis?.title || source.name;
 
-        // Pass global output format preference and quality
-        const imageUrl = await processImage(source.base64Data, job.prompt, source.type, job.aspectRatio, options.outputFormat, options.imageQuality);
+        // Use snapshot options to ensure the job runs with the settings present at creation time
+        // This prevents race conditions where changing global settings affects running jobs
+        const targetFormat = job.optionsSnapshot?.outputFormat || options.outputFormat || 'image/png';
+        const targetQuality = job.optionsSnapshot?.imageQuality || options.imageQuality || '4K';
+
+        // Pass snapshot preferences to processImage
+        const imageUrl = await processImage(
+            source.base64Data, 
+            job.prompt, 
+            source.type, 
+            job.aspectRatio, 
+            targetFormat, 
+            targetQuality
+        );
         
         const duration = Date.now() - startTime;
         setJobDurations(prev => [...prev.slice(-19), duration]); 
@@ -541,7 +599,7 @@ const App: React.FC = () => {
             jobId: job.id,
             timestamp: new Date().toISOString(),
             sourceFilename: source.originalUploadName || source.name,
-            generatedFilename: `${job.originalFilename}.${options.outputFormat === 'image/jpeg' ? 'jpg' : 'png'}`,
+            generatedFilename: `${job.originalFilename}.${imageUrl.includes('image/jpeg') ? 'jpg' : 'png'}`,
             prompt: job.prompt,
             optionsDescription: job.optionsSummary
         };
@@ -559,7 +617,7 @@ const App: React.FC = () => {
         });
 
         setGeneratedImages(prev => [generated, ...prev]);
-        autoDownloadImage(imageUrl, job.originalFilename, job.optionsSummary);
+        autoDownloadImage(imageUrl, job.originalFilename);
         
         // Remove from Queue upon completion (it moves to Gallery)
         setJobQueue(prev => {
@@ -568,6 +626,18 @@ const App: React.FC = () => {
         });
 
     } catch (error: any) {
+        // NEW: Unresponsive Check / Timeout Backoff
+        const errMsg = error.message?.toLowerCase() || '';
+        if (errMsg.includes('timed out') || errMsg.includes('503') || errMsg.includes('overloaded')) {
+             setOptions(prev => {
+                 if (prev.concurrentJobs > 3) {
+                     log('WARN', 'System unresponsive. Reducing concurrency.', { from: prev.concurrentJobs, to: prev.concurrentJobs - 1 });
+                     return { ...prev, concurrentJobs: prev.concurrentJobs - 1 };
+                 }
+                 return prev;
+             });
+        }
+
         const currentRetryCount = (job.retryCount || 0);
         const source = sourceRegistry.get(job.sourceImageId);
         

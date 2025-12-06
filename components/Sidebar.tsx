@@ -68,7 +68,13 @@ const Sidebar: React.FC<Props> = ({
   const scrollToBottom = () => scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   
   // --- derived lists ---
-  const uploads: SourceImage[] = Array.from(sourceRegistry.values());
+  const uploads: SourceImage[] = (Array.from(sourceRegistry.values()) as SourceImage[]).sort((a, b) => {
+      const pA = a.priorityCount || 0;
+      const pB = b.priorityCount || 0;
+      if (pA !== pB) return pB - pA; // Descending priority
+      return 0; // Stable sort
+  });
+
   const processingJobs = jobs.filter(j => j.status === 'PROCESSING');
   const queuedJobs = jobs.filter(j => j.status === 'QUEUED');
 
@@ -308,6 +314,11 @@ const Sidebar: React.FC<Props> = ({
                                 {stats.prohibitedCount > 0 ? (
                                     <div className="bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-lg flex items-center gap-1 border border-black/20">
                                         <Ban size={10} /> Prohibited ({stats.prohibitedCount}x)
+                                    </div>
+                                ) : null}
+                                {src.priorityCount && src.priorityCount > 0 ? (
+                                    <div className="bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-lg flex items-center gap-1 border border-black/20">
+                                        <ArrowUp size={10} /> Priority ({src.priorityCount}x)
                                     </div>
                                 ) : null}
                             </>

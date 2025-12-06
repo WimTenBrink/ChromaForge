@@ -144,6 +144,7 @@ export interface SourceImage {
     status?: 'VALIDATING' | 'READY';
     activityLog: JobLogEntry[];
     duplicateCount?: number;
+    priorityCount?: number;
 }
 
 // Job (Execution Unit)
