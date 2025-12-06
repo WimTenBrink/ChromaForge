@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Play, Pause, Settings, Terminal, Shield, ShieldCheck, Trash2, Loader2, Activity, Book, Upload, Plus, Search, RefreshCw, ArrowUpCircle, ArrowDownCircle, ArrowUp, ArrowDown, Calendar, Type, LayoutList, Grip, Monitor, XCircle, Layers, Image as ImageIcon, ScanSearch, Ban, FileImage } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import OptionsDialog from './components/OptionsDialog';
@@ -40,6 +40,8 @@ const App: React.FC = () => {
   const [isManualOpen, setIsManualOpen] = useState(false);
   
   const [activeSidebarTab, setActiveSidebarTab] = useState<SidebarTab>('UPLOADS');
+  const [sidebarWidth, setSidebarWidth] = useState(20);
+  const [isResizingSidebar, setIsResizingSidebar] = useState(false);
 
   // View Viewer (Zoom)
   const [viewedImage, setViewedImage] = useState<GeneratedImage | { url: string, title: string, metadata: string } | null>(null);
@@ -89,6 +91,30 @@ const App: React.FC = () => {
     { id: 'QUEUE', label: 'Queue', icon: Layers, count: queueCount, color: 'text-blue-400' },
     { id: 'FAILED', label: 'Failed', icon: RefreshCw, count: failedCount + blockedCount, color: 'text-orange-400' },
   ];
+
+  // --- Resize Logic ---
+  const startResizing = useCallback(() => setIsResizingSidebar(true), []);
+  const stopResizing = useCallback(() => setIsResizingSidebar(false), []);
+  
+  const resize = useCallback((e: MouseEvent) => {
+      if (isResizingSidebar) {
+          let newWidth = (e.clientX / window.innerWidth) * 100;
+          if (newWidth < 10) newWidth = 10;
+          if (newWidth > 50) newWidth = 50;
+          setSidebarWidth(newWidth);
+      }
+  }, [isResizingSidebar]);
+
+  useEffect(() => {
+      if (isResizingSidebar) {
+          window.addEventListener('mousemove', resize);
+          window.addEventListener('mouseup', stopResizing);
+      }
+      return () => {
+          window.removeEventListener('mousemove', resize);
+          window.removeEventListener('mouseup', stopResizing);
+      };
+  }, [isResizingSidebar, resize, stopResizing]);
 
   // --- Persistence ---
 
@@ -146,7 +172,7 @@ const App: React.FC = () => {
       if (isRestoring) return;
       
       const sweeper = setInterval(() => {
-          setSourceRegistry(prev => {
+          setSourceRegistry((prev: Map<string, SourceImage>) => {
               const next = new Map(prev);
               let changed = false;
               
@@ -240,17 +266,42 @@ const App: React.FC = () => {
     
     // 2. Add to Validation Queue first
     const newValidationJobs: ValidationJob[] = [];
-    const currentSources = Array.from(sourceRegistry.values());
+    const currentSources: SourceImage[] = Array.from(sourceRegistry.values());
     
+    // Maintain a local set of filenames added in this batch to prevent instant duplicates within batch
+    const processedNames = new Set(currentSources.map(s => s.originalUploadName));
+
     for (let i = 0; i < fileList.length; i++) {
         const file = fileList[i];
         
-        // Check for duplicates by filename
-        const duplicate = currentSources.find((s: SourceImage) => s.originalUploadName === file.name);
-        if (duplicate) {
-            log('WARN', 'Skipping duplicate upload', { fileName: file.name });
+        // Check duplicate against existing or newly processed in this batch
+        if (processedNames.has(file.name)) {
+            // It's a duplicate. Find the ID if it exists in currentSources.
+            // If it was just added in this batch (not in currentSources yet), we might miss the ID update
+            // but we still prevent adding it again to validation queue.
+            const duplicate = currentSources.find((s: SourceImage) => s.originalUploadName === file.name);
+            
+            if (duplicate) {
+                const duplicateId = duplicate.id;
+                setSourceRegistry((prev: Map<string, SourceImage>) => {
+                    const next = new Map(prev);
+                    const existing = next.get(duplicateId);
+                    if (existing) {
+                        next.set(duplicateId, {
+                            ...existing,
+                            duplicateCount: (existing.duplicateCount || 0) + 1
+                        });
+                    }
+                    return next;
+                });
+                log('INFO', 'Duplicate upload detected (incremented count)', { fileName: file.name });
+            } else {
+                 log('INFO', 'Duplicate upload ignored (same batch)', { fileName: file.name });
+            }
             continue;
         }
+
+        processedNames.add(file.name);
 
         const sourceId = crypto.randomUUID();
         const base64 = await new Promise<string>((resolve) => {
@@ -271,7 +322,8 @@ const App: React.FC = () => {
             type: file.type,
             previewUrl,
             status: 'VALIDATING',
-            activityLog: []
+            activityLog: [],
+            duplicateCount: 0
         }));
 
         newValidationJobs.push({
@@ -285,10 +337,6 @@ const App: React.FC = () => {
     if (newValidationJobs.length > 0) {
         setValidationQueue(prev => [...prev, ...newValidationJobs]);
         log('INFO', 'Added files to validation queue', { count: newValidationJobs.length });
-    } else {
-        if (fileList.length > 0) {
-           alert("No new files added. Duplicates were skipped.");
-        }
     }
   };
 
@@ -343,13 +391,18 @@ const App: React.FC = () => {
                 const displayFilename = permutations.length > 1 
                     ? `${generatedName}_${(index + 1).toString().padStart(3, '0')}`
                     : generatedName;
+                
+                // Prepare clean name for prompt injection and D&D Cards
+                // Capitalize properly: _elf-warrior -> Elf Warrior
+                // This name will be used as the Character Name in the prompt for D&D sheets
+                const promptName = generatedName.replace(/^_/, '').split(/[-_]+/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ').trim();
 
                 newJobs.push({
                     id: crypto.randomUUID(),
                     sourceImageId: job.sourceImageId,
                     originalFilename: displayFilename,
                     generatedTitle: "Pending...",
-                    prompt: buildPromptFromCombo(combo),
+                    prompt: buildPromptFromCombo(combo, promptName),
                     optionsSummary: summaryParts.join(', '),
                     aspectRatio: combo.aspectRatio,
                     optionsSnapshot: job.optionsSnapshot,
@@ -386,6 +439,18 @@ const App: React.FC = () => {
 
   const handleRemoveJob = (id: string) => {
     setJobQueue(prev => prev.filter(j => j.id !== id));
+  };
+  
+  const handlePrioritizeSource = (sourceId: string) => {
+    setJobQueue(prev => {
+        // Separate jobs for this source and others
+        const sourceJobs = prev.filter(j => j.sourceImageId === sourceId);
+        const otherJobs = prev.filter(j => j.sourceImageId !== sourceId);
+        // Put source jobs first (FIFO relative to each other)
+        // This ensures the selected source's jobs are executed next
+        return [...sourceJobs, ...otherJobs];
+    });
+    log('INFO', 'Prioritized source', { sourceId });
   };
 
   const autoDownloadImage = (imageUrl: string, originalFilename: string, optionsSummary: string) => {
@@ -682,7 +747,7 @@ const App: React.FC = () => {
 
   // --- Queue Emptying Logic ---
   const handleRemoveFinishedUploads = () => {
-      // Finished means: No active jobs AND No pending validation AND No Failed jobs
+      // Finished means: No active jobs AND No pending validation AND No Failed jobs (that can be retried)
       const activeSourceIds = new Set<string>();
       
       jobQueue.forEach(j => activeSourceIds.add(j.sourceImageId));
@@ -1070,10 +1135,16 @@ const App: React.FC = () => {
       </div>
 
       {/* Main Layout */}
-      <main className="flex-1 flex overflow-hidden">
+      <main className="flex-1 flex overflow-hidden relative" onMouseMove={(e) => { if(isResizingSidebar) e.preventDefault(); }}>
         
-        {/* Left Sidebar: 20vw */}
-        <div className="w-[20vw] shrink-0 h-full border-r border-slate-800 bg-slate-950">
+        {/* Left Sidebar: Dynamic Width */}
+        <div 
+            className="shrink-0 h-full border-r border-slate-800 bg-slate-950" 
+            style={{ 
+                width: `${sidebarWidth}vw`, 
+                transition: isResizingSidebar ? 'none' : 'width 75ms ease-out' 
+            }}
+        >
             <Sidebar 
               activeTab={activeSidebarTab}
               jobs={jobQueue}
@@ -1096,13 +1167,29 @@ const App: React.FC = () => {
               onEmptyValidation={handleEmptyValidationQueue}
               onEmptyJobQueue={handleEmptyJobQueue}
               onEmptyFailed={handleEmptyFailed}
+              onPrioritizeSource={handlePrioritizeSource}
               retryLimit={options.retryLimit}
               safetyRetryLimit={options.safetyRetryLimit}
+              sidebarWidth={sidebarWidth}
+              setSidebarWidth={setSidebarWidth}
             />
         </div>
 
-        {/* Right Gallery: 80vw */}
-        <div className="w-[80vw] bg-slate-950 flex flex-col min-w-0 h-full relative">
+        {/* DRAG HANDLE */}
+        <div
+            className={`absolute top-0 bottom-0 w-1.5 -ml-[3px] cursor-col-resize z-50 transition-colors ${isResizingSidebar ? 'bg-violet-600' : 'hover:bg-violet-500/50'}`}
+            style={{ left: `${sidebarWidth}vw` }}
+            onMouseDown={startResizing}
+        />
+
+        {/* Right Gallery: Dynamic Width */}
+        <div 
+            className="bg-slate-950 flex flex-col min-w-0 h-full relative" 
+            style={{ 
+                width: `${100 - sidebarWidth}vw`,
+                transition: isResizingSidebar ? 'none' : 'width 75ms ease-out' 
+            }}
+        >
            {/* Info Bar with Sort Controls (Cleaned Up) */}
            <div className="h-10 border-b border-slate-800 bg-slate-900 flex items-center px-4 justify-between text-xs text-slate-500 shrink-0 z-10">
                <div className="flex items-center gap-2">
@@ -1204,14 +1291,14 @@ const App: React.FC = () => {
                   className="p-3 bg-slate-800/80 hover:bg-violet-600 text-white rounded-full shadow-lg border border-slate-700 backdrop-blur transition-all"
                   title="Scroll to Top"
                >
-                   <ArrowUpCircle size={24} />
+                   <ArrowUp size={24} />
                </button>
                <button 
                   onClick={scrollToBottom} 
                   className="p-3 bg-slate-800/80 hover:bg-violet-600 text-white rounded-full shadow-lg border border-slate-700 backdrop-blur transition-all"
                   title="Scroll to Bottom"
                >
-                   <ArrowDownCircle size={24} />
+                   <ArrowDown size={24} />
                </button>
            </div>
         </div>

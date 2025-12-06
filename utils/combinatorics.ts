@@ -1,5 +1,3 @@
-
-
 import { AppOptions, GlobalConfig } from "../types";
 import { DND_CLASSES } from "../constants";
 
@@ -43,7 +41,7 @@ export const countPermutations = (options: AppOptions, config: GlobalConfig | nu
     const allKeys = Object.keys(options) as (keyof AppOptions)[];
     
     // Categories that use smart grouping (Additive if different groups)
-    const smartGroupCategories: (keyof AppOptions)[] = ['skinConditions', 'decorations', 'bondage', 'items'];
+    const smartGroupCategories: (keyof AppOptions)[] = ['skinConditions', 'decorations', 'bondage', 'items', 'superhero'];
 
     // Base keys: Arrays, not combinedGroups control, not dnd (except dndClass), and NOT smart group categories
     const baseKeys = allKeys.filter(key => 
@@ -82,6 +80,7 @@ export const countPermutations = (options: AppOptions, config: GlobalConfig | nu
                     if (key === 'decorations') groups = config.decorationGroups;
                     if (key === 'bondage') groups = config.bondageGroups;
                     if (key === 'items') groups = config.itemGroups;
+                    if (key === 'superhero') groups = config.superheroGroups;
 
                     const buckets = getSmartGroupBuckets(val, groups);
                     
@@ -148,7 +147,7 @@ export const countPermutations = (options: AppOptions, config: GlobalConfig | nu
 export const generatePermutations = (options: AppOptions, config: GlobalConfig | null) => {
   const allKeys = Object.keys(options) as (keyof AppOptions)[];
   
-  const smartGroupCategories: (keyof AppOptions)[] = ['skinConditions', 'decorations', 'bondage', 'items'];
+  const smartGroupCategories: (keyof AppOptions)[] = ['skinConditions', 'decorations', 'bondage', 'items', 'superhero'];
 
   // Base keys: Normal options that are strictly permutations
   const baseKeys = allKeys.filter(key => 
@@ -187,6 +186,7 @@ export const generatePermutations = (options: AppOptions, config: GlobalConfig |
             if (key === 'decorations') groups = config.decorationGroups;
             if (key === 'bondage') groups = config.bondageGroups;
             if (key === 'items') groups = config.itemGroups;
+            if (key === 'superhero') groups = config.superheroGroups;
 
             const buckets = getSmartGroupBuckets(val, groups);
 
@@ -322,7 +322,7 @@ const shouldInclude = (value: string | undefined): boolean => {
     return !v.startsWith("as-is") && !v.startsWith("original") && v !== "default" && v !== "none";
 };
 
-export const buildPromptFromCombo = (combo: any): string => {
+export const buildPromptFromCombo = (combo: any, characterName: string = "Unknown Character"): string => {
   // Conditionally build lines only for present options
   const details: string[] = [];
   let requiresNudityCoverage = false;
@@ -340,6 +340,7 @@ export const buildPromptFromCombo = (combo: any): string => {
       if (shouldInclude(combo.hair)) details.push(`- Hair: ${combo.hair}`);
       if (shouldInclude(combo.eyeColor)) details.push(`- Eye Color: ${combo.eyeColor}`);
       if (shouldInclude(combo.emotions)) details.push(`- Emotion/Expression: ${combo.emotions}`);
+      if (shouldInclude(combo.superhero)) details.push(`- Superpowers/Abilities: ${combo.superhero}`);
       
       if (shouldInclude(combo.clothes)) {
           // Check for implied nudity keywords to trigger safety instruction
@@ -348,7 +349,7 @@ export const buildPromptFromCombo = (combo: any): string => {
               clothesLower.includes("nude") || 
               clothesLower.includes("body paint") || 
               clothesLower.includes("strategic") ||
-              clothesLower.includes("sheet") ||
+              clothesLower.includes("sheet") || 
               clothesLower.includes("towel") ||
               clothesLower.includes("covered in") ||
               clothesLower.includes("draped") ||
@@ -427,7 +428,38 @@ export const buildPromptFromCombo = (combo: any): string => {
   }
 
   if (shouldInclude(combo.aspectRatio) && combo.aspectRatio !== 'Original') {
-      setting.push(`- Aspect Ratio: ${combo.aspectRatio} (Crop or extend the composition to strictly match this ratio if necessary)`);
+    // Normal ratios (numeric x:y or NxN)
+    if (combo.aspectRatio.match(/^\d+:\d+$/) || combo.aspectRatio.match(/^\d+x\d+$/)) {
+         setting.push(`- Aspect Ratio: ${combo.aspectRatio} (Crop or extend the composition to strictly match this ratio if necessary)`);
+    } else {
+         // Special Formats
+         setting.push(`- Special Format: ${combo.aspectRatio}`);
+         if (combo.aspectRatio.includes("Magic TCG")) {
+             setting.push("  * LAYOUT: Fantasy Trading Card style. Vertical composition (approx 3:4). Ensure the subject fits within the card frame boundaries. Add a fantasy border/frame.");
+         } else if (combo.aspectRatio.includes("Baseball Card")) {
+             setting.push("  * LAYOUT: Sports Trading Card style. Vertical composition (approx 3:4). Add a vintage or modern card border.");
+         } else if (combo.aspectRatio.includes("Tarot")) {
+             setting.push("  * LAYOUT: Tarot Card. Tall vertical composition (approx 9:16). Elaborate decorative borders are encouraged.");
+         } else if (combo.aspectRatio.includes("Circular Token")) {
+             setting.push("  * LAYOUT: VTT Token. The subject MUST be enclosed in a decorative CIRCULAR frame. The output image is square (1:1), but the relevant content is the circle. The corners should be transparent or dark.");
+         } else if (combo.aspectRatio.includes("Oval Portrait")) {
+             setting.push("  * LAYOUT: Oval Portrait. The subject is enclosed in an ornate OVAL frame. Vertical orientation.");
+         } else if (combo.aspectRatio.includes("Polaroid")) {
+             setting.push("  * LAYOUT: Instant Film Photo. Include the classic thick white border frame of a Polaroid picture.");
+         } else if (combo.aspectRatio.includes("Cinematic")) {
+             setting.push("  * LAYOUT: Ultra Widescreen Cinematic (2.35:1). Letterboxing (black bars) is acceptable to achieve the ratio within a 16:9 image.");
+         } else if (combo.aspectRatio.includes("D&D Character Sheet")) {
+             setting.push("  * LAYOUT: Dungeons & Dragons Character Sheet.");
+             setting.push(`  * TOP TEXT: Name. Write the name '${characterName}' at the top. If '${characterName}' describes a generic object or archetype (e.g. 'Elf Warrior', 'Untitled'), INVENT a unique fantasy name instead.`);
+             const cls = combo.dndClass && shouldInclude(combo.dndClass) ? combo.dndClass : "Unknown";
+             if (cls === "Unknown") {
+                 setting.push(`  * BOTTOM TEXT: Class. Infer the D&D Class from the visual equipment (e.g. 'Fighter', 'Wizard', 'Rogue') and write it at the bottom.`);
+             } else {
+                 setting.push(`  * BOTTOM TEXT: Class: '${cls}'. Write this clearly at the bottom.`);
+             }
+             setting.push("  * STYLE: Parchment texture background, decorative border, clear text visibility.");
+         }
+    }
   }
 
   let modeInstruction = "";
@@ -502,13 +534,14 @@ export const buildPromptFromCombo = (combo: any): string => {
     ${style.join('\n    ')}
     
     IMPORTANT INSTRUCTIONS:
-    1. POSE PRIORITY: The most important aspect to preserve is the POSE and GESTURE of the characters. Use details from the original image (hair, features) unless they contradict a selected Option.
+    1. STRICT POSE ADHERENCE: The input image is the absolute reference for structure, pose, and composition. You are coloring this specific line art, NOT generating a new image from scratch. DO NOT alter the pose. DO NOT rotate the subject or camera. DO NOT change limb positions. The output must align perfectly with the input sketches. Only options can override specific textures or details (e.g. changing clothes), but the underlying pose is sacred.
     2. ATTIRE OVERRIDE: The user's chosen 'Attire' or 'Clothes' option is ABSOLUTE. If the original image depicts clothing that conflicts with the selection (e.g., original has a dress, option is 'Bikini'), you MUST REMOVE the original clothing and render the selected attire. Modify the underlying body structure if necessary to show skin that was previously covered, while keeping the original pose.
     3. Apply the 'Species' setting (if specified) to the main humanoid character. If 'Animal/Creature' is specified, apply that to the main subject.
     4. Ensure strict logical consistency between the Technology/Environment and the Character's attire/class. 
     ${modeInstruction}
     6. If an option is not set (missing from the lists above), do not use it or infer it arbitrarily; use the original image content as the guide for that aspect.
     7. Preserve facial details, expressions, and features from the original line art.
+    8. SKELETAL INTEGRITY: If the original line art depicts skeletal structures (e.g. skull face, exposed ribs, skeletal hands), PRESERVE THEM AS EXPOSED BONE. Do not cover clearly drawn bones with skin or flesh. Render them as realistic bone material integrated into the character.
     ${coverageInstruction}
     ${modestyInstruction}
     

@@ -188,6 +188,25 @@ const getClosestAspectRatio = (width: number, height: number): string => {
     ).str;
 };
 
+// Helper to map complex aspect ratio strings to API supported enum
+const mapAspectRatioToApi = (ratio: string): string => {
+    if (!ratio || ratio === 'Original') return '1:1'; // Default fallback, though logic handles detection elsewhere
+    
+    // Direct matches
+    const supported = ["1:1", "3:4", "4:3", "9:16", "16:9"];
+    if (supported.includes(ratio)) return ratio;
+
+    // Special Mappings
+    if (ratio.includes("Magic TCG") || ratio.includes("Baseball") || ratio.includes("Polaroid")) return "3:4";
+    if (ratio.includes("Tarot") || ratio.includes("Oval") || ratio.includes("D&D Character")) return "9:16";
+    if (ratio.includes("Circular")) return "1:1";
+    if (ratio.includes("Cinematic")) return "16:9"; // 16:9 is the widest native supported
+    if (ratio === "2:3") return "3:4"; // Approximation
+    if (ratio === "3:2") return "4:3"; // Approximation
+
+    return "1:1"; // Ultimate fallback
+};
+
 export const processImage = async (file: File | string, prompt: string, mimeTypeInput?: string, aspectRatio?: string, outputFormat: string = 'image/png', imageQuality: string = '4K'): Promise<string> => {
   log('INFO', 'Initializing Gemini Request', { model: 'gemini-3-pro-image-preview', aspectRatio, outputFormat, imageQuality });
 
@@ -238,26 +257,23 @@ export const processImage = async (file: File | string, prompt: string, mimeType
     };
 
     // Configure Aspect Ratio
-    const supportedRatios = ["1:1", "3:4", "4:3", "9:16", "16:9"];
-    
-    // Auto-detect orientation/ratio if 'Original' or not specified
+    let apiAspectRatio = "1:1";
+
     if (!aspectRatio || aspectRatio === 'Original') {
         try {
             const { width, height } = await getImageDimensions(base64Image, mimeType);
             const closestRatio = getClosestAspectRatio(width, height);
-            requestPayload.config.imageConfig.aspectRatio = closestRatio;
+            apiAspectRatio = closestRatio;
             log('INFO', 'Auto-detected Aspect Ratio', { width, height, mappedTo: closestRatio });
         } catch (e) {
             log('WARN', 'Failed to detect aspect ratio, defaulting to 1:1', formatErrorForLog(e));
-            requestPayload.config.imageConfig.aspectRatio = "1:1";
+            apiAspectRatio = "1:1";
         }
-    } else if (supportedRatios.includes(aspectRatio)) {
-        requestPayload.config.imageConfig.aspectRatio = aspectRatio;
     } else {
-        // Log warning for unsupported ratio, the prompt text will attempt to handle it, though the API might default to 1:1
-        log('WARN', 'Unsupported Aspect Ratio config for this model, defaulting to 1:1 in config', { aspectRatio });
-        requestPayload.config.imageConfig.aspectRatio = "1:1";
+        apiAspectRatio = mapAspectRatioToApi(aspectRatio);
     }
+    
+    requestPayload.config.imageConfig.aspectRatio = apiAspectRatio;
 
     log('GEMINI_REQ', 'Sending Generate Content Request', { 
        model: requestPayload.model,

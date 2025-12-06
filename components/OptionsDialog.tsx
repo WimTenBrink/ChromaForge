@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef } from 'react';
-import { X, User, Zap, Map as MapIcon, Clock, Sparkles, Monitor, Package, Sliders, Palette, Lightbulb, Camera, Smile, Cloud, Brush, Calculator, Ban, Shirt, CheckSquare, Square, Layers, Activity, Droplets, Download, Upload, Check, Sword, Lock, Bug, Cog } from 'lucide-react';
+import { X, User, Zap, Map as MapIcon, Clock, Sparkles, Monitor, Package, Sliders, Palette, Lightbulb, Camera, Smile, Cloud, Brush, Calculator, Ban, Shirt, CheckSquare, Square, Layers, Activity, Droplets, Download, Upload, Check, Sword, Lock, Bug, Cog, Flame } from 'lucide-react';
 import { AppOptions, GlobalConfig } from '../types';
 import { DEFAULT_OPTIONS, DND_CLASSES } from '../constants';
 import { countPermutations } from '../utils/combinatorics';
@@ -12,7 +12,7 @@ interface Props {
   config: GlobalConfig | null;
 }
 
-type TabID = 'CHAR' | 'ATTIRE' | 'BONDAGE' | 'DND' | 'SPECIES' | 'ANIMALS' | 'ITEMS' | 'DECOR' | 'SKIN_FX' | 'TECH' | 'ENV' | 'TIME' | 'WEATHER' | 'RATIO' | 'STYLE' | 'LIGHTING' | 'CAMERA' | 'MOOD' | 'ACTION' | 'CUSTOM';
+type TabID = 'CHAR' | 'ATTIRE' | 'BONDAGE' | 'DND' | 'POWERS' | 'SPECIES' | 'ANIMALS' | 'ITEMS' | 'DECOR' | 'SKIN_FX' | 'TECH' | 'ENV' | 'TIME' | 'WEATHER' | 'RATIO' | 'STYLE' | 'LIGHTING' | 'CAMERA' | 'MOOD' | 'ACTION' | 'CUSTOM';
 
 const OptionsDialog: React.FC<Props> = ({ isOpen, onClose, options, setOptions, config }) => {
   const [activeTab, setActiveTab] = useState<TabID>('CHAR');
@@ -90,6 +90,7 @@ const OptionsDialog: React.FC<Props> = ({ isOpen, onClose, options, setOptions, 
           items: 'ITEMS',
           decorations: 'DECOR',
           skinConditions: 'SKIN_FX',
+          superhero: 'POWERS',
           technology: 'TECH',
           environment: 'ENV',
           timeOfDay: 'TIME',
@@ -221,6 +222,30 @@ const OptionsDialog: React.FC<Props> = ({ isOpen, onClose, options, setOptions, 
             {renderCombineHeader(category, title)}
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 {items.map(item => renderOptionItem(category, item))}
+            </div>
+        </div>
+    );
+  };
+
+  const renderAspectRatioSection = () => {
+    const allRatios = config.lists.aspectRatio || [];
+    const standardRatios = ["Original", "1:1", "16:9", "2:3", "3:2", "3:4", "4:3", "9:16"];
+    const specialRatios = allRatios.filter(r => !standardRatios.includes(r));
+    
+    return (
+        <div className="mb-8">
+            {renderCombineHeader('aspectRatio', 'Output Aspect Ratio')}
+            
+            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 border-b border-slate-800 pb-1">Standard Formats</h4>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                {standardRatios.map(item => renderOptionItem('aspectRatio', item))}
+            </div>
+
+            <h4 className="text-xs font-bold text-violet-500 uppercase tracking-wider mb-2 border-b border-violet-900/30 pb-1 flex items-center gap-2">
+                <Sparkles size={12}/> Special Layouts & Character Sheets
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-3">
+                {specialRatios.map(item => renderOptionItem('aspectRatio', item))}
             </div>
         </div>
     );
@@ -440,6 +465,7 @@ const OptionsDialog: React.FC<Props> = ({ isOpen, onClose, options, setOptions, 
                { id: 'CHAR', label: 'Characters', icon: User },
                { id: 'ATTIRE', label: 'Attire', icon: Shirt },
                { id: 'BONDAGE', label: 'Bondage', icon: Lock },
+               { id: 'POWERS', label: 'Superpowers', icon: Flame }, // New Tab
                { id: 'DND', label: 'D&D Classes', icon: Sword },
                { id: 'SPECIES', label: 'Species', icon: Sparkles },
                { id: 'ANIMALS', label: 'Animals', icon: Bug },
@@ -527,6 +553,19 @@ const OptionsDialog: React.FC<Props> = ({ isOpen, onClose, options, setOptions, 
                         </p>
                     </div>
                     {renderGroups(config.bondageGroups, 'bondage', 'Restraints & Bondage')}
+                </div>
+              </div>
+            )}
+            {activeTab === 'POWERS' && (
+              <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
+                {options.removeCharacters && (
+                    <div className="p-4 bg-red-900/20 border border-red-500/30 rounded-lg flex items-center gap-3 text-red-200 mb-4">
+                        <Ban size={20} />
+                        <span className="text-sm font-medium">Superpower options are disabled in Landscape Mode.</span>
+                    </div>
+                )}
+                <div className={options.removeCharacters ? 'opacity-30 pointer-events-none grayscale' : ''}>
+                    {renderGroups(config.superheroGroups, 'superhero', 'Mutant Abilities & Powers')}
                 </div>
               </div>
             )}
@@ -663,7 +702,7 @@ const OptionsDialog: React.FC<Props> = ({ isOpen, onClose, options, setOptions, 
             )}
             {activeTab === 'RATIO' && (
                <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-                  {renderCheckboxes('aspectRatio', 'Output Aspect Ratio')}
+                  {renderAspectRatioSection()}
                </div>
             )}
             {activeTab === 'CUSTOM' && (

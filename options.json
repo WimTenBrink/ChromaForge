@@ -1,5 +1,6 @@
 {
   "speciesGroups": {
+    "Mortal Kombat": ["As-Is (Skip)", "Centaurian (MK)", "Cryomancer", "Cyborg (Lin Kuei)", "Edenian", "Elder God", "Enenra", "Kytinn", "Naknada", "Osh-Tekk", "Outworlder", "Saurian (Reptile)", "Shokan (Four Arms)", "Specter/Wraith", "Tarkatan", "Vampire (Nitara)", "Zaterran"],
     "Elfquest": ["As-Is (Skip)", "Wolfrider Elf", "Sun Folk Elf", "Glider Elf", "Wavedancer Elf", "Go-Back Elf", "High One (Elfquest)", "Preserver (Elfquest)", "Troll (Elfquest)"],
     "Star Wars": [
       "As-Is (Skip)", "Chiss", "Ewok", "Jawa", "Kel Dor", "Mandalorian", "Mirialan", "Mon Calamari", "Rodian", "Togruta", "Twi'lek", "Wookiee", "Zabrak"
@@ -52,6 +53,20 @@
     "Generic / Sci-Fi / Horror": [
       "As-Is (Skip)", "Alien Grey", "Android", "Angel", "Centaur", "Cyborg", "Demon", "Fairy", "Human", "Mermaid", "Reptilian", "Succubus", "Vampire", "Werewolf", "Zombie"
     ]
+  },
+  "superheroGroups": {
+      "Physical Mutations": [
+          "As-Is (Skip)", "Adamantium Skeleton", "Angelic Wings", "Armored Carapace", "Bone Claws", "Diamond Form", "Elasticity/Stretching", "Extra Arms", "Gills/Water Breathing", "Invisibility", "Organic Steel Skin", "Prehensile Tail", "Regeneration Factor", "Rock Skin", "Shape-Shifting", "Size Manipulation (Giant)", "Size Manipulation (Tiny)", "Spiked Armor", "Super Speed", "Super Strength", "Wall-Crawling", "Webbed Limbs", "Winged Flight (Bat)", "Winged Flight (Feathered)"
+      ],
+      "Energy & Elemental": [
+          "As-Is (Skip)", "Cryokinesis (Ice)", "Electricity Manipulation", "Energy Blasts", "Fire Manipulation", "Force Fields", "Gravity Control", "Heat Vision", "Kinetic Charging", "Laser Eyes", "Magnetism", "Plasma Projection", "Shadow Manipulation", "Sonic Scream", "Teleportation", "Wind Manipulation"
+      ],
+      "Mental & Psionic": [
+          "As-Is (Skip)", "Astral Projection", "Empathy", "Illusion Casting", "Mind Control", "Phasing/Intangibility", "Precognition", "Technopathy", "Telekinesis", "Telepathy"
+      ],
+      "Gear & Other": [
+          "As-Is (Skip)", "Bionic Limbs", "Magic Cloak", "Power Armor", "Symbiote Suit", "Utility Belt"
+      ]
   },
   "animalGroups": {
       "Herbivores (Mammals)": [
@@ -107,6 +122,7 @@
       ]
   },
   "environmentGroups": {
+    "Mortal Kombat": ["As-Is (Skip)", "The Pit (Bridge)", "Living Forest", "Dead Pool (Acid)", "Goro's Lair", "Shao Kahn's Arena", "Shang Tsung's Courtyard", "Warrior Shrine", "The Kombat Tomb", "The Subway", "Sky Temple", "Netherrealm Inferno", "Jinsei Chamber"],
     "Elfquest": ["As-Is (Skip)", "Father Tree", "Sorrow's End", "Blue Mountain", "Palace of the High Ones", "The Frozen Waste", "Howling Rock", "Forbidden Grove"],
     "Tarzan / Jungle World": [
         "As-Is (Skip)", "Ancestral Treehouse", "Deep Jungle Canopy", "Elephant Graveyard", "Hidden City of Opar", "Jungle River", "Lost Civilization Ruins", "Misty Rainforest", "Savannah Watering Hole", "Tribal Village", "Vine-Covered Temple"
@@ -178,6 +194,7 @@
       "Druid": ["As-Is (Skip)", "Club", "Scimitar", "Sickle", "Wooden Staff"]
   },
   "itemGroups": {
+    "Mortal Kombat Items": ["As-Is (Skip)", "Scorpion's Spear (Kunai)", "Sub-Zero's Ice Axe", "Raiden's Lightning Staff", "Kitana's Steel Fans", "Mileena's Sais", "Kung Lao's Razor Hat", "Kano's Cybernetic Eye", "Liu Kang's Nunchaku", "Shao Kahn's Wrath Hammer", "Sonya's Energy Gauntlets", "Jax's Bionic Arms", "Kabal's Hook Swords", "Jade's Bo Staff", "Sindel's Kwan Dao"],
     "Elfquest": ["As-Is (Skip)", "Soul Name Symbol", "Copper Dagger", "Wolf Blood", "Dreamberry", "New Moon Sword", "Lodestone"],
     "Franchise Props": [
         "As-Is (Skip)", "Batarang", "Captain's Shield", "Golden Snitch", "Laser Rifle", "Lightsaber", "Magic Wand", "Mjolnir Hammer", "Pip-Boy", "Plasma Rifle", "Power Sword", "Witcher Medallion"
@@ -336,7 +353,17 @@
     ],
     "timeOfDay": ["As-Is (Skip)", "Dawn", "Morning", "Noon", "Afternoon", "Golden Hour", "Sunset", "Evening", "Blue Hour", "Twilight", "Midnight", "Eclipse"],
     "weather": ["As-Is (Skip)", "Clear / Sunny", "Dust Storm", "Foggy / Misty", "Hail", "Overcast", "Partly Cloudy", "Rain / Drizzle", "Snowing / Blizzard", "Thunderstorm", "Windy"],
-    "aspectRatio": ["Original", "1:1", "16:9", "2:3", "3:2", "3:4", "4:3", "9:16"],
+    "aspectRatio": [
+        "Original", "1:1", "16:9", "2:3", "3:2", "3:4", "4:3", "9:16",
+        "D&D Character Sheet",
+        "Magic TCG Card (63x88mm)",
+        "Baseball Card (2.5x3.5in)",
+        "Tarot Card (70x120mm)",
+        "Polaroid Photo",
+        "Circular Token (Square Frame)",
+        "Oval Portrait (Vertical Frame)",
+        "Cinematic Widescreen (2.35:1)"
+    ],
     "artStyle": [
         "As-Is (Skip)", "Anime", "Art Nouveau", "Comic Book", "Concept Art", "Cyberpunk", "Gothic", "Noir", "Oil Painting", "Photorealistic", "Pixar Style", "Pop Art", "Retro 80s", "Steampunk", "Studio Ghibli Style", "Surrealism", "Ukiyo-e", "Watercolor"
     ],

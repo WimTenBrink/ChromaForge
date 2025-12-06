@@ -30,6 +30,7 @@ export const DEFAULT_OPTIONS: AppOptions = {
   mood: [],
   decorations: [],
   skinConditions: [],
+  superhero: [], // New field
   
   // D&D Defaults
   dndClass: [],

@@ -49,6 +49,9 @@ export interface AppOptions {
   decorations: string[];
   skinConditions: string[];
   
+  // New Powers
+  superhero: string[];
+
   // D&D Class Options
   dndClass: string[]; // Generic Class Archetype
   dndFighterOutfit: string[];
@@ -93,6 +96,7 @@ export interface GlobalConfig {
   attireGroups: Record<string, string[]>;
   bondageGroups: Record<string, string[]>; // New config group
   skinConditionGroups: Record<string, string[]>;
+  superheroGroups: Record<string, string[]>; // New config group for powers
   // D&D Configuration
   dndOutfits: Record<string, string[]>;
   dndWeapons: Record<string, string[]>;
@@ -139,6 +143,7 @@ export interface SourceImage {
     analysis?: ImageAnalysis;
     status?: 'VALIDATING' | 'READY';
     activityLog: JobLogEntry[];
+    duplicateCount?: number;
 }
 
 // Job (Execution Unit)
