@@ -1,5 +1,6 @@
 {
   "speciesGroups": {
+    "Elfquest": ["As-Is (Skip)", "Wolfrider Elf", "Sun Folk Elf", "Glider Elf", "Wavedancer Elf", "Go-Back Elf", "High One (Elfquest)", "Preserver (Elfquest)", "Troll (Elfquest)"],
     "Star Wars": [
       "As-Is (Skip)", "Chiss", "Ewok", "Jawa", "Kel Dor", "Mandalorian", "Mirialan", "Mon Calamari", "Rodian", "Togruta", "Twi'lek", "Wookiee", "Zabrak"
     ],
@@ -7,7 +8,7 @@
       "As-Is (Skip)", "Andorian", "Bajoran", "Borg", "Cardassian", "Ferengi", "Gorn", "Klingon", "Orion", "Romulan", "Trill", "Vulcan"
     ],
     "Dungeons & Dragons": [
-      "As-Is (Skip)", "Aasimar", "Dragonborn", "Drow", "Dwarf", "Elf", "Firbolg", "Genasi", "Gnome", "Goblin", "Half-Orc", "Halfling", "Orc", "Tabaxi", "Tiefling"
+      "As-Is (Skip)", "Aasimar", "Dark Elf (Drow)", "Dragonborn", "Dwarf", "Elf (High)", "Elf (Wood)", "Firbolg", "Genasi", "Gnome", "Goblin", "Half-Orc", "Halfling", "Orc", "Tabaxi", "Tiefling"
     ],
     "Human/Animal Hybrids": [
       "As-Is (Skip)", "Centaur", "Satyr", "Faun", "Onocentaur", "Hippocamp", "Ipotane", "Minotaur", "Sphinx", "Manticore", "Lamia", "Hecatonchires", "Karakoncolos", "Blemmyes", "Cynocephaly"
@@ -52,7 +53,61 @@
       "As-Is (Skip)", "Alien Grey", "Android", "Angel", "Centaur", "Cyborg", "Demon", "Fairy", "Human", "Mermaid", "Reptilian", "Succubus", "Vampire", "Werewolf", "Zombie"
     ]
   },
+  "animalGroups": {
+      "Herbivores (Mammals)": [
+        "As-Is (Skip)", "Antelope", "Bison", "Buffalo", "Camel", "Capybara", "Cow", "Deer", "Donkey", "Elephant", "Gazelle", "Giraffe", "Goat", "Hippo", "Horse", "Kangaroo", "Koala", "Llama", "Moose", "Panda", "Rabbit", "Rhinoceros", "Sheep", "Sloth", "Yak", "Zebra"
+      ],
+      "Carnivores (Mammals)": [
+        "As-Is (Skip)", "Badger", "Bear (Grizzly)", "Bear (Polar)", "Bobcat", "Cheetah", "Cougar", "Coyote", "Dingo", "Fox", "Hyena", "Jackal", "Jaguar", "Leopard", "Lion", "Lynx", "Mongoose", "Ocelot", "Otter", "Panther", "Raccoon", "Seal", "Tiger", "Walrus", "Weasel", "Wolf"
+      ],
+      "Omnivores (Mammals)": [
+        "As-Is (Skip)", "Aardvark", "Baboon", "Badger", "Bat", "Bear (Black)", "Chimpanzee", "Chipmunk", "Dog", "Fox (Red)", "Hedgehog", "Human", "Lemur", "Meerkat", "Monkey", "Mouse", "Opossum", "Pig", "Platypus", "Rat", "Skunk", "Squirrel", "Warthog"
+      ],
+      "Sea creatures (Mammals)": [
+        "As-Is (Skip)", "Beluga Whale", "Blue Whale", "Bottlenose Dolphin", "Bowhead Whale", "Dugong", "Fin Whale", "Gray Whale", "Humpback Whale", "Killer Whale (Orca)", "Manatee", "Narwhal", "Pilot Whale", "Porpoise", "Right Whale", "Sea Lion", "Sea Otter", "Sperm Whale", "Spinner Dolphin", "Spotted Dolphin", "Walrus"
+      ],
+      "Birds": [
+        "As-Is (Skip)", "Albatross", "Cardinal", "Chicken", "Crane", "Crow", "Duck", "Eagle", "Falcon", "Flamingo", "Goose", "Hawk", "Hummingbird", "Ostrich", "Owl", "Parrot", "Peacock", "Pelican", "Penguin", "Pigeon", "Raven", "Robin", "Seagull", "Sparrow", "Stork", "Swan", "Toucan", "Turkey", "Vulture", "Woodpecker"
+      ],
+      "Reptiles": [
+        "As-Is (Skip)", "Alligator", "Anaconda", "Bearded Dragon", "Boa Constrictor", "Caiman", "Chameleon", "Cobra", "Crocodile", "Gecko", "Gila Monster", "Iguana", "Komodo Dragon", "Lizard", "Python", "Rattlesnake", "Sea Turtle", "Skink", "Snapping Turtle", "Tortoise", "Turtle", "Viper"
+      ],
+      "Fish": [
+        "As-Is (Skip)", "Anglerfish", "Barracuda", "Bass", "Betta", "Carp", "Catfish", "Clownfish", "Cod", "Eel", "Flounder", "Goldfish", "Grouper", "Guppy", "Koi", "Lionfish", "Mackerel", "Marlin", "Piranha", "Pufferfish", "Salmon", "Seahorse", "Shark (Great White)", "Shark (Hammerhead)", "Stingray", "Swordfish", "Trout", "Tuna"
+      ],
+      "Other Earth animals": [
+        "As-Is (Skip)", "Ant", "Bee", "Beetle", "Butterfly", "Centipede", "Cockroach", "Crab", "Dragonfly", "Earthworm", "Flea", "Fly", "Frog", "Grasshopper", "Jellyfish", "Ladybug", "Lobster", "Mantis", "Mosquito", "Moth", "Octopus", "Salamander", "Scorpion", "Snail", "Snake (Generic)", "Spider (Tarantula)", "Squid", "Starfish", "Toad", "Wasp"
+      ],
+      "Herbivores (Dinosaurs)": [
+        "As-Is (Skip)", "Ankylosaurus", "Apatosaurus", "Brachiosaurus", "Brontosaurus", "Corythosaurus", "Diplodocus", "Dryosaurus", "Edmontosaurus", "Gallimimus", "Iguanodon", "Kentrosaurus", "Maiasaura", "Pachycephalosaurus", "Parasaurolophus", "Plateosaurus", "Protoceratops", "Stegosaurus", "Styracosaurus", "Triceratops", "Tsintaosaurus"
+      ],
+      "Carnivores (Dinosaurs)": [
+        "As-Is (Skip)", "Albertosaurus", "Allosaurus", "Baryonyx", "Carnotaurus", "Ceratosaurus", "Coelophysis", "Compsognathus", "Deinonychus", "Dilophosaurus", "Giganotosaurus", "Megalosaurus", "Oviraptor", "Spinosaurus", "Suchomimus", "Troodon", "Tyrannosaurus Rex", "Utahraptor", "Velociraptor"
+      ],
+      "Omnivores (Dinosaurs)": [
+        "As-Is (Skip)", "Avimimus", "Beipiaosaurus", "Caudipteryx", "Chirostenotes", "Citipati", "Deinocheirus", "Gigantoraptor", "Heterodontosaurus", "Lesothosaurus", "Massospondylus", "Microceratus", "Ornithomimus", "Pelycosaurus", "Struthiomimus", "Therizinosaurus"
+      ],
+      "Sea creatures (Dinosaurs)": [
+        "As-Is (Skip)", "Ammonite", "Archelon", "Basilosaurus", "Dunkleosteus", "Elasmosaurus", "Helicoprion", "Ichthyosaurus", "Kronosaurus", "Leedsichthys", "Liopleurodon", "Megalodon", "Mosasaurus", "Nothosaurus", "Plesiosaurus", "Pliosaurus", "Shonisaurus", "Tylosaurus", "Xiphactinus"
+      ],
+      "Western Dragons": [
+        "As-Is (Skip)", "Acid Dragon", "Black Dragon", "Blue Dragon", "Brass Dragon", "Bronze Dragon", "Copper Dragon", "Crystal Dragon", "Emerald Dragon", "Fire Dragon", "Gold Dragon", "Green Dragon", "Ice Dragon", "Lightning Dragon", "Red Dragon", "Silver Dragon", "White Dragon", "Wyvern"
+      ],
+      "Eastern dragons": [
+        "As-Is (Skip)", "Azure Dragon", "Dilong", "Fucanglong", "Horned Dragon", "Jiaolong", "Panlong", "Shenlong", "Tianlong", "Yinglong", "Zhulong"
+      ],
+      "Other dragons": [
+        "As-Is (Skip)", "Amphiptere", "Cockatrice", "Drake", "Faerie Dragon", "Hydra", "Knucker", "Lindworm", "Lung Dragon", "Pseudodragon", "Salamander (Mythical)", "Sea Serpent", "Wyrm"
+      ],
+      "Other D&D Monsters": [
+        "As-Is (Skip)", "Aboleth", "Beholder", "Bugbear", "Chimera", "Chuul", "Displacer Beast", "Doppelganger", "Drider", "Gelatinous Cube", "Gibbering Mouther", "Gnoll", "Goblin", "Gorgon", "Harpy", "Hobgoblin", "Hook Horror", "Kobold", "Lich", "Manticore", "Mind Flayer", "Mimic", "Minotaur", "Ogre", "Owlbear", "Rust Monster", "Troll", "Umber Hulk"
+      ],
+      "Animals from SF/Fantasy": [
+        "As-Is (Skip)", "Bantha", "Basilisk", "Chocobo", "Deathclaw", "Dire Wolf", "Griffin", "Hippogriff", "Kraken", "Moogle", "Pegasus", "Phoenix", "Porg", "Rancor", "Tauntaun", "Thestral", "Unicorn", "Wampa", "Warg", "Yeti"
+      ]
+  },
   "environmentGroups": {
+    "Elfquest": ["As-Is (Skip)", "Father Tree", "Sorrow's End", "Blue Mountain", "Palace of the High Ones", "The Frozen Waste", "Howling Rock", "Forbidden Grove"],
     "Tarzan / Jungle World": [
         "As-Is (Skip)", "Ancestral Treehouse", "Deep Jungle Canopy", "Elephant Graveyard", "Hidden City of Opar", "Jungle River", "Lost Civilization Ruins", "Misty Rainforest", "Savannah Watering Hole", "Tribal Village", "Vine-Covered Temple"
     ],
@@ -123,6 +178,7 @@
       "Druid": ["As-Is (Skip)", "Club", "Scimitar", "Sickle", "Wooden Staff"]
   },
   "itemGroups": {
+    "Elfquest": ["As-Is (Skip)", "Soul Name Symbol", "Copper Dagger", "Wolf Blood", "Dreamberry", "New Moon Sword", "Lodestone"],
     "Franchise Props": [
         "As-Is (Skip)", "Batarang", "Captain's Shield", "Golden Snitch", "Laser Rifle", "Lightsaber", "Magic Wand", "Mjolnir Hammer", "Pip-Boy", "Plasma Rifle", "Power Sword", "Witcher Medallion"
     ],
@@ -149,6 +205,7 @@
     ]
   },
   "attireGroups": {
+    "Elfquest": ["As-Is (Skip)", "Wolfrider Leathers", "Sun Folk Tunic", "Glider Robes", "Wavedancer Coral Armor", "Go-Back Furs", "High One Robes"],
     "Harry Potter / Wizarding World": [
         "As-Is (Skip)", "Death Eater Robes", "Hogwarts School Robes", "Professor Robes", "Quidditch Uniform", "Yule Ball Gown"
     ],
@@ -185,7 +242,7 @@
       "As-Is (Skip)", "Bandages (Medical)", "Bandages (Mummy)", "Draped in Fur Stole", "Draped in Sheet", "Draped in Silk", "Draped in Tulle", "Fishnet Bodysuit", "Gossamer Wrap", "Micro-Bikini", "Net Dress", "Ribbon Wrapping", "Sheer Lace Lingerie", "Sheer Robe", "Sheer Silk Veil", "Translucent Plastic Raincoat", "Wet White Shirt"
     ],
     "Implied Nudity / Artistic": [
-      "As-Is (Skip)", "Plain Nude", "Backlit Silhouette", "Covered in Flowers", "Covered in Jewels", "Covered in Money", "Flowers & Vines Coverage", "Foam/Bubbles Coverage", "Fog/Mist Obscured", "Hair Coverage (Godiva)", "Hands Coverage", "Shadows (Chiaroscuro)", "Strategic Object Placement", "Water Submersion Distortion"
+      "As-Is (Skip)", "Plain Nude", "Backlit Silhouette", "Covered in Flowers", "Covered in Jewels", "Covered in Money", "Flowers & Vines Coverage", "Foam/Bubbles Coverage", "Fog/Mist Obscured", "Hair Coverage (Godiva)", "Hands Coverage", "Shadows (Chiaroscuro)", "Strategic Object Placement", "Water Submersion Distortion", "Topless", "Bottomless", "Dust Cloud Coverage", "Smoke Cloud Coverage", "Steam Cloud Coverage"
     ],
     "Topless (Bottoms Only)": [
       "As-Is (Skip)", "Baggy Cargo Pants (Topless)", "Bikini Bottoms (Topless)", "Black Leggings (Topless)", "Blue Jeans (Topless)", "Board Shorts (Topless)", "Chainmail Skirt (Topless)", "Denim Cutoffs (Topless)", "Gladiator Kilt (Topless)", "Gym Shorts (Topless)", "Harem Pants (Topless)", "Leather Chaps (Topless)", "Leather Pants (Topless)", "Loincloth (Topless)", "Long Flowing Skirt (Topless)", "Micro-Mini Skirt (Topless)", "Pajama Bottoms (Topless)", "Pleated School Skirt (Topless)", "Sarong / Pareo (Topless)", "Tactical Trousers (Topless)", "Towel around Waist (Topless)", "Yoga Pants (Topless)"
@@ -238,12 +295,24 @@
     "age": ["As-Is (Skip)", "Child", "Preteen", "Teen", "Young Adult", "Adult", "Mature", "Old", "Ancient"],
     "bodyType": ["As-Is (Skip)", "Athletic", "Average", "Bodybuilder", "Chubby", "Curvy", "Fat", "Fit", "Heavy", "Lean", "Muscular", "Obese", "Plump", "Skinny", "Slender", "Stocky", "Tall", "Thin", "Voluptuous"],
     "breastSize": ["As-Is (Skip)", "Cup AA", "Cup A", "Cup B", "Cup C", "Cup D", "Cup DD", "Cup E", "Cup F"],
-    "skin": ["As-Is (Skip)", "Albino", "Bioluminescent", "Black", "Blueish", "Brown", "Dark Brown", "Fair", "Greenish", "Metallic", "Pale", "Reddish", "Tan", "Tan/Tan lines", "Transparent"],
-    "eyeColor": ["As-Is (Skip)", "Amber", "Black", "Blue", "Brown", "Glowing", "Gold", "Green", "Grey", "Hazel", "Heterochromia", "Red", "Silver", "Violet"],
-    "hair": ["As-Is (Skip)", "Bald", "Black", "Blonde", "Blue", "Brunette", "Copper", "Fiery", "Gold", "Green", "Grey", "Pink", "Platinum", "Purple", "Rainbow", "Red", "Silver", "White"],
+    "skin": [
+        "As-Is (Skip)", "Albino", "Bioluminescent", "Black", "Blueish", "Bronze", "Brown", "Chalk White", "Copper", "Dark Brown", 
+        "Deep Obsidian", "Fair", "Golden", "Greenish", "Grey", "Lavender", "Metallic", "Olive", "Pale", "Pastel Blue", 
+        "Pastel Pink", "Reddish", "Silver", "Tan", "Tan/Tan lines", "Transparent"
+    ],
+    "eyeColor": [
+        "As-Is (Skip)", "Amber", "Black", "Blind / White", "Blue", "Brown", "Cybernetic / Red", "Glowing Blue", "Glowing Green", 
+        "Gold", "Green", "Grey", "Hazel", "Heterochromia", "Pink", "Purple", "Red", "Silver", "Violet", "Void Black", "White", "Yellow"
+    ],
+    "hair": [
+        "As-Is (Skip)", "Auburn", "Bald", "Black", "Blonde", "Blue", "Brunette", "Copper", "Fiery Orange", "Ginger", "Gold", 
+        "Green", "Grey", "Lavender", "Multi-colored", "Neon Blue", "Neon Green", "Neon Pink", "Ombre (Black to Red)", 
+        "Ombre (Blonde to Pink)", "Pastel Blue", "Pastel Pink", "Pink", "Platinum Blonde", "Purple", "Rainbow", "Red", 
+        "Silver", "Teal", "Two-Tone (Black/White)", "White"
+    ],
     "emotions": ["As-Is (Skip)", "Angry", "Bored", "Confident", "Crazy", "Crying", "Determined", "Disgusted", "Excited", "Fearful", "Happy", "Laughing", "Love", "Neutral", "Playful", "Sad", "Screaming", "Seductive", "Shy", "Stoic", "Surprised"],
     "actions": ["As-Is (Skip)", "Casting Spell", "Dancing", "Diving", "Driving", "Eating", "Fighting", "Floating", "Flying", "Jumping", "Kneeling", "Pose (Dynamic)", "Pose (Relaxed)", "Reading", "Riding", "Running", "Shooting", "Sitting", "Sleeping", "Standing", "Swimming", "Walking", "Working", "Writing"],
-    "shoes": ["As-Is (Skip)", "Barefoot", "Boots", "Dress Shoes", "Greaves", "High Heels", "Leg Wraps", "Magnetic Boots", "Sandals", "Sneakers", "Space Boots"],
+    "shoes": ["As-Is (Skip)", "Barefoot", "Boots", "Dress Shoes", "Greaves", "High Heels", "Leg Wraps", "Magnetic Boots", "Sandals", "Sneakers", "Space Boots", "Flip-flops", "Barefoot Sandals", "Gladiator Sandals", "Open-toe Heels", "Foot Wraps", "Toe Rings & Chains"],
     "technology": [
         "As-Is (Skip)", 
         "Stone Age / Primitive", 
@@ -279,6 +348,9 @@
     ],
     "mood": [
         "As-Is (Skip)", "Aggressive", "Chaotic", "Eerie", "Epic", "Happy", "Heroic", "Melancholic", "Mysterious", "Peaceful", "Romantic", "Whimsical"
+    ],
+    "dndClass": [
+      "As-Is (Skip)", "Barbarian", "Bard", "Cleric", "Druid", "Fighter", "Monk", "Paladin", "Ranger", "Rogue", "Sorcerer", "Warlock", "Wizard", "Artificer"
     ]
   }
 }

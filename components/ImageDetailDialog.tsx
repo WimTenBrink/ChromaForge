@@ -127,7 +127,7 @@ const ImageDetailDialog: React.FC<Props> = ({ image, sourceUrl, onClose, onNext,
         {/* Header */}
         <div className="flex items-center justify-between p-3 border-b border-slate-800 bg-slate-950 z-10">
           <div className="flex items-center gap-4 overflow-hidden">
-            <h3 className="text-emerald-400 font-bold truncate max-w-md">{getTitle()}</h3>
+            <h3 className="text-violet-400 font-bold truncate max-w-md">{getTitle()}</h3>
             <span className="text-xs text-slate-500 truncate max-w-xl border-l border-slate-800 pl-4">
                 {getMetadata()}
             </span>
@@ -138,7 +138,7 @@ const ImageDetailDialog: React.FC<Props> = ({ image, sourceUrl, onClose, onNext,
             {onRepeat && isGeneratedImage(image) && (
                  <button 
                     onClick={() => { onRepeat(image); onClose(); }}
-                    className="flex items-center gap-2 bg-slate-800 hover:bg-emerald-600 text-slate-400 hover:text-white px-3 py-1.5 rounded-lg border border-slate-700 hover:border-emerald-500 transition-colors"
+                    className="flex items-center gap-2 bg-slate-800 hover:bg-violet-600 text-slate-400 hover:text-white px-3 py-1.5 rounded-lg border border-slate-700 hover:border-violet-500 transition-colors"
                     title="Repeat this job (Enter)"
                  >
                      <RefreshCw size={16} />
@@ -160,15 +160,15 @@ const ImageDetailDialog: React.FC<Props> = ({ image, sourceUrl, onClose, onNext,
 
             {/* Show Original Toggle */}
             {sourceUrl && (
-                <label className="flex items-center gap-2 cursor-pointer bg-slate-800 rounded-lg px-3 py-1.5 border border-slate-700 hover:border-emerald-500/50 transition-colors select-none">
+                <label className="flex items-center gap-2 cursor-pointer bg-slate-800 rounded-lg px-3 py-1.5 border border-slate-700 hover:border-violet-500/50 transition-colors select-none">
                     <input 
                         type="checkbox" 
                         checked={showOriginal} 
                         onChange={(e) => setShowOriginal(e.target.checked)} 
                         className="hidden"
                     />
-                    {showOriginal ? <Eye size={16} className="text-emerald-400" /> : <EyeOff size={16} className="text-slate-400" />}
-                    <span className={`text-xs font-bold ${showOriginal ? 'text-emerald-400' : 'text-slate-400'}`}>
+                    {showOriginal ? <Eye size={16} className="text-violet-400" /> : <EyeOff size={16} className="text-slate-400" />}
+                    <span className={`text-xs font-bold ${showOriginal ? 'text-violet-400' : 'text-slate-400'}`}>
                         Show Original (Space)
                     </span>
                 </label>
@@ -212,7 +212,7 @@ const ImageDetailDialog: React.FC<Props> = ({ image, sourceUrl, onClose, onNext,
             {/* Source Indicator Overlay */}
             {showOriginal && (
                  <div className="absolute top-4 right-4 z-10 pointer-events-none">
-                    <div className="bg-emerald-600/90 text-white px-3 py-1 rounded shadow-lg font-bold text-sm border border-emerald-400/50">
+                    <div className="bg-violet-600/90 text-white px-3 py-1 rounded shadow-lg font-bold text-sm border border-violet-400/50">
                         ORIGINAL IMAGE
                     </div>
                  </div>

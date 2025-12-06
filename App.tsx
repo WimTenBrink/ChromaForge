@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Play, Pause, Settings, Terminal, Shield, ShieldCheck, Trash2, Loader2, Activity, Book, Upload, Save, FolderOpen, Plus, Search, RefreshCw, ArrowUpCircle, ArrowDownCircle, ArrowUp, ArrowDown, Calendar, Type, LayoutList, Grip, Monitor } from 'lucide-react';
+import { Play, Pause, Settings, Terminal, Shield, ShieldCheck, Trash2, Loader2, Activity, Book, Upload, Plus, Search, RefreshCw, ArrowUpCircle, ArrowDownCircle, ArrowUp, ArrowDown, Calendar, Type, LayoutList, Grip, Monitor, XCircle, Layers, Image as ImageIcon, ScanSearch, Ban, FileImage } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import OptionsDialog from './components/OptionsDialog';
 import ConsoleDialog from './components/ConsoleDialog';
 import ImageDetailDialog from './components/ImageDetailDialog';
 import ManualDialog from './components/ManualDialog';
 import JobDetailDialog from './components/JobDetailDialog';
-import { AppOptions, Job, GeneratedImage, FailedItem, ImageAnalysis, GlobalConfig, SourceImage, ValidationJob } from './types';
+import { AppOptions, Job, GeneratedImage, FailedItem, ImageAnalysis, GlobalConfig, SourceImage, ValidationJob, SidebarTab, JobLogEntry } from './types';
 import { DEFAULT_OPTIONS } from './constants';
 import { generatePermutations, buildPromptFromCombo } from './utils/combinatorics';
 import { processImage, validateFileName } from './services/geminiService';
@@ -17,7 +17,6 @@ const App: React.FC = () => {
   // --- State ---
   const [options, setOptions] = useState<AppOptions>(DEFAULT_OPTIONS);
   const [globalConfig, setGlobalConfig] = useState<GlobalConfig | null>(null);
-  const [maxConcurrentJobs, setMaxConcurrentJobs] = useState(5);
   
   // Data Store
   const [sourceRegistry, setSourceRegistry] = useState<Map<string, SourceImage>>(new Map());
@@ -40,6 +39,8 @@ const App: React.FC = () => {
   const [isConsoleOpen, setIsConsoleOpen] = useState(false);
   const [isManualOpen, setIsManualOpen] = useState(false);
   
+  const [activeSidebarTab, setActiveSidebarTab] = useState<SidebarTab>('UPLOADS');
+
   // View Viewer (Zoom)
   const [viewedImage, setViewedImage] = useState<GeneratedImage | { url: string, title: string, metadata: string } | null>(null);
   const [viewedJob, setViewedJob] = useState<Job | FailedItem | null>(null);
@@ -48,8 +49,6 @@ const App: React.FC = () => {
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [isRestoring, setIsRestoring] = useState(true);
 
-  // File Input Ref for Import
-  const queueFileInputRef = useRef<HTMLInputElement>(null);
   const galleryScrollRef = useRef<HTMLDivElement>(null);
 
   // Statistics & Timing
@@ -57,11 +56,39 @@ const App: React.FC = () => {
 
   // Derived Statistics
   const activeJobs = jobQueue.filter(j => j.status === 'QUEUED' || j.status === 'PROCESSING');
-  const processingCount = jobQueue.filter(j => j.status === 'PROCESSING').length;
+  const processingJobs = jobQueue.filter(j => j.status === 'PROCESSING');
+  const processingCount = processingJobs.length;
   
   const totalVariationsScheduled = jobQueue.length + generatedImages.length + failedItems.length;
   const totalProcessed = generatedImages.length + failedItems.length;
   const progressPercentage = totalVariationsScheduled === 0 ? 0 : Math.round((totalProcessed / totalVariationsScheduled) * 100);
+
+  // Counts for Tabs
+  const uploadsCount = sourceRegistry.size;
+  const validationCount = validationQueue.length;
+  const jobsCount = processingCount;
+  const queueCount = jobQueue.filter(j => j.status === 'QUEUED').length;
+  
+  // Calculate Failed/Blocked counts based on configurable limits
+  // Note: Sidebar will merge these into "Failed" tab now.
+  const { failedCount, blockedCount } = useMemo(() => {
+    let f = 0, b = 0;
+    failedItems.forEach(item => {
+      const isSafety = item.error.toLowerCase().includes('prohibited') || item.error.toLowerCase().includes('safety') || item.error.toLowerCase().includes('blocked');
+      const maxRetries = isSafety ? options.safetyRetryLimit : options.retryLimit;
+      if (item.retryCount >= maxRetries) b++;
+      else f++;
+    });
+    return { failedCount: f, blockedCount: b };
+  }, [failedItems, options.retryLimit, options.safetyRetryLimit]);
+
+  const sidebarTabs: { id: SidebarTab; label: string; icon: React.ElementType; count: number; color: string }[] = [
+    { id: 'UPLOADS', label: 'Upload', icon: ImageIcon, count: uploadsCount, color: 'text-violet-400' },
+    { id: 'VALIDATING', label: 'Check', icon: ScanSearch, count: validationCount, color: 'text-purple-400' },
+    { id: 'JOBS', label: 'Jobs', icon: Loader2, count: jobsCount, color: 'text-amber-400' },
+    { id: 'QUEUE', label: 'Queue', icon: Layers, count: queueCount, color: 'text-blue-400' },
+    { id: 'FAILED', label: 'Failed', icon: RefreshCw, count: failedCount + blockedCount, color: 'text-orange-400' },
+  ];
 
   // --- Persistence ---
 
@@ -176,100 +203,6 @@ const App: React.FC = () => {
       }
   };
 
-  // --- Queue Import/Export ---
-
-  const handleExportQueue = () => {
-      if (jobQueue.length === 0) {
-          alert("Queue is empty.");
-          return;
-      }
-
-      // Serialize Registry (Exclude File objects, they aren't serializable, rely on base64)
-      const registryArray = Array.from(sourceRegistry.entries()).map(([id, src]) => {
-          return [id, {
-              ...(src as any),
-              file: null, // Drop the file object
-              previewUrl: '' // Drop the blob URL (will regenerate on import)
-          }];
-      });
-
-      const data = {
-          version: '2.0',
-          timestamp: Date.now(),
-          queue: jobQueue,
-          registry: registryArray
-      };
-
-      const json = JSON.stringify(data, null, 2);
-      const blob = new Blob([json], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `chromaforge_queue_${new Date().toISOString().slice(0, 10)}.klj`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      
-      log('INFO', 'Queue exported', { count: jobQueue.length });
-  };
-
-  const handleImportQueue = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = async (event) => {
-          try {
-              const content = event.target?.result as string;
-              const data = JSON.parse(content);
-
-              if (!data.queue || !Array.isArray(data.queue) || !data.registry) {
-                  throw new Error("Invalid .klj file format.");
-              }
-
-              const newRegistry = new Map(sourceRegistry);
-              let restoredCount = 0;
-
-              // 1. Restore Registry
-              for (const [id, src] of data.registry) {
-                  // Only add if not present to avoid overwriting active blob URLs if they exist
-                  if (!newRegistry.has(id)) {
-                      // Regenerate Blob URL from Base64
-                      const res = await fetch(`data:${src.type};base64,${src.base64Data}`);
-                      const blob = await res.blob();
-                      const previewUrl = URL.createObjectURL(blob);
-                      
-                      newRegistry.set(id, {
-                          ...(src as any),
-                          file: null,
-                          previewUrl
-                      });
-                      restoredCount++;
-                  }
-              }
-
-              // 2. Restore Jobs (Filter duplicates)
-              const existingJobIds = new Set(jobQueue.map(j => j.id));
-              const newJobs = data.queue.filter((j: Job) => !existingJobIds.has(j.id));
-
-              setSourceRegistry(newRegistry);
-              setJobQueue(prev => [...prev, ...newJobs]);
-
-              log('INFO', 'Queue imported', { importedJobs: newJobs.length, restoredSources: restoredCount });
-              alert(`Queue imported: ${newJobs.length} jobs added.`);
-
-          } catch (err) {
-              console.error(err);
-              log('ERROR', 'Import failed', err);
-              alert("Failed to import queue file. The file might be corrupted or incompatible.");
-          }
-          // Reset input
-          if (queueFileInputRef.current) queueFileInputRef.current.value = '';
-      };
-      reader.readAsText(file);
-  };
-
   // --- Handlers ---
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -337,7 +270,8 @@ const App: React.FC = () => {
             name: "Analyzing...", // Placeholder
             type: file.type,
             previewUrl,
-            status: 'VALIDATING'
+            status: 'VALIDATING',
+            activityLog: []
         }));
 
         newValidationJobs.push({
@@ -385,7 +319,8 @@ const App: React.FC = () => {
              });
 
              // Generate Permutations and Jobs
-             const permutations = generatePermutations(job.optionsSnapshot);
+             // Pass globalConfig to enable smart grouping
+             const permutations = generatePermutations(job.optionsSnapshot, globalConfig);
              const newJobs: Job[] = [];
              
              permutations.forEach((combo, index) => {
@@ -446,7 +381,7 @@ const App: React.FC = () => {
     };
 
     validateNext();
-  }, [validationQueue, isValidating, apiKeyReady]);
+  }, [validationQueue, isValidating, apiKeyReady, globalConfig]);
 
 
   const handleRemoveJob = (id: string) => {
@@ -454,8 +389,11 @@ const App: React.FC = () => {
   };
 
   const autoDownloadImage = (imageUrl: string, originalFilename: string, optionsSummary: string) => {
+      // Determine ext based on options.outputFormat
+      let ext = 'png';
+      if (options.outputFormat === 'image/jpeg') ext = 'jpg';
       // Use originalFilename which has already been generated (e.g., 'elf-warrior_001')
-      const filename = `${originalFilename}.png`;
+      const filename = `${originalFilename}.${ext}`;
       
       const link = document.createElement('a');
       link.href = imageUrl;
@@ -464,7 +402,7 @@ const App: React.FC = () => {
       link.click();
       document.body.removeChild(link);
   };
-
+  
   const toggleProcessing = () => {
     if (isProcessing) {
       setIsProcessing(false);
@@ -485,8 +423,8 @@ const App: React.FC = () => {
     
     const activeWorkers = jobQueue.filter(j => j.status === 'PROCESSING').length;
     
-    // Check if we can start more jobs
-    if (activeWorkers >= maxConcurrentJobs) return;
+    // Check if we can start more jobs (based on options.concurrentJobs)
+    if (activeWorkers >= options.concurrentJobs) return;
     
     // Find next QUEUED job (Top to Bottom - FIFO)
     const nextJob = jobQueue.find(j => j.status === 'QUEUED');
@@ -501,7 +439,7 @@ const App: React.FC = () => {
     // Start Job
     runJob(nextJob);
 
-  }, [isProcessing, jobQueue, maxConcurrentJobs]); // Dependency on jobQueue ensures re-run when status changes
+  }, [isProcessing, jobQueue, options.concurrentJobs]); // Dependency on jobQueue ensures re-run when status changes
 
   const runJob = async (job: Job) => {
     // 1. Mark as Processing
@@ -516,7 +454,8 @@ const App: React.FC = () => {
         // Use source analysis title if available, else filename
         const title = source.analysis?.title || source.name;
 
-        const imageUrl = await processImage(source.base64Data, job.prompt, source.type, job.aspectRatio);
+        // Pass global output format preference and quality
+        const imageUrl = await processImage(source.base64Data, job.prompt, source.type, job.aspectRatio, options.outputFormat, options.imageQuality);
         
         const duration = Date.now() - startTime;
         setJobDurations(prev => [...prev.slice(-19), duration]); 
@@ -531,12 +470,37 @@ const App: React.FC = () => {
             timestamp: Date.now(),
             optionsSnapshot: job.optionsSnapshot
         };
+        
+        // Log activity to source history
+        const logEntry: JobLogEntry = {
+            jobId: job.id,
+            timestamp: new Date().toISOString(),
+            sourceFilename: source.originalUploadName || source.name,
+            generatedFilename: `${job.originalFilename}.${options.outputFormat === 'image/jpeg' ? 'jpg' : 'png'}`,
+            prompt: job.prompt,
+            optionsDescription: job.optionsSummary
+        };
+
+        setSourceRegistry(prev => {
+            const next = new Map<string, SourceImage>(prev);
+            const s = next.get(job.sourceImageId);
+            if (s) {
+                next.set(job.sourceImageId, {
+                    ...s,
+                    activityLog: [...(s.activityLog || []), logEntry]
+                });
+            }
+            return next;
+        });
 
         setGeneratedImages(prev => [generated, ...prev]);
         autoDownloadImage(imageUrl, job.originalFilename, job.optionsSummary);
         
         // Remove from Queue upon completion (it moves to Gallery)
-        setJobQueue(prev => prev.filter(j => j.id !== job.id));
+        setJobQueue(prev => {
+            const remaining = prev.filter(j => j.id !== job.id);
+            return remaining;
+        });
 
     } catch (error: any) {
         const currentRetryCount = (job.retryCount || 0);
@@ -555,7 +519,10 @@ const App: React.FC = () => {
         
         setFailedItems(prev => [failed, ...prev]);
         // Remove from main queue (moves to Failed list)
-        setJobQueue(prev => prev.filter(j => j.id !== job.id));
+        setJobQueue(prev => {
+            const remaining = prev.filter(j => j.id !== job.id);
+            return remaining;
+        });
     }
   };
 
@@ -563,9 +530,9 @@ const App: React.FC = () => {
   const handleRepeatJob = (img: GeneratedImage) => {
       // Reconstruct job from GeneratedImage info
       const sourceId = img.sourceImageId;
-      const options = img.optionsSnapshot;
+      const jobOptions = img.optionsSnapshot;
 
-      if (!sourceId || !options) {
+      if (!sourceId || !jobOptions) {
           log('WARN', 'Cannot repeat job: missing source or options', {});
           return;
       }
@@ -577,8 +544,8 @@ const App: React.FC = () => {
         generatedTitle: "Repeated Job",
         prompt: img.prompt,
         optionsSummary: img.optionsUsed,
-        aspectRatio: undefined, // Could be extracted from options if needed
-        optionsSnapshot: options,
+        aspectRatio: undefined, 
+        optionsSnapshot: jobOptions,
         status: 'QUEUED',
         retryCount: 0
       };
@@ -595,7 +562,7 @@ const App: React.FC = () => {
   const handleRetry = (item: FailedItem) => {
       // Check limits before retrying
       const isSafety = item.error.toLowerCase().includes('prohibited') || item.error.toLowerCase().includes('safety');
-      const limit = isSafety ? 1 : 3;
+      const limit = isSafety ? options.safetyRetryLimit : options.retryLimit;
 
       if (item.retryCount >= limit) return;
       
@@ -603,10 +570,8 @@ const App: React.FC = () => {
       
       if (item.originalJob) {
           const retryJob: Job = { ...(item.originalJob as Job), retryCount: item.retryCount + 1, status: 'QUEUED' };
-          // Add to top of queue for priority? Or end?
-          // Usually retries get priority, but user asked repeated jobs to go to end.
-          // Let's stick to adding retries to top for now as per previous logic, unless specified.
-          setJobQueue(prev => [retryJob, ...prev]);
+          // Append to end of queue (bottom)
+          setJobQueue(prev => [...prev, retryJob]);
           if (!isProcessing) setIsProcessing(true);
       }
   };
@@ -617,7 +582,7 @@ const App: React.FC = () => {
 
       itemsToRetry.forEach(item => {
           const isSafety = item.error.toLowerCase().includes('prohibited') || item.error.toLowerCase().includes('safety');
-          const limit = isSafety ? 1 : 3;
+          const limit = isSafety ? options.safetyRetryLimit : options.retryLimit;
           
           if (item.retryCount < limit && item.originalJob) {
               itemIdsToRemove.add(item.id);
@@ -632,7 +597,7 @@ const App: React.FC = () => {
       
       if (jobsToAdd.length > 0) {
           setFailedItems(prev => prev.filter(f => !itemIdsToRemove.has(f.id)));
-          setJobQueue(prev => [...jobsToAdd, ...prev]); // Add to top
+          setJobQueue(prev => [...prev, ...jobsToAdd]); // Append to bottom
           if (!isProcessing) setIsProcessing(true);
           log('INFO', 'Batch Retry Started', { count: jobsToAdd.length });
       }
@@ -659,16 +624,36 @@ const App: React.FC = () => {
 
   const handleToggleSourceFilter = (id: string) => {
       setSelectedSourceIds(prev => {
-          const next = new Set(prev);
-          if (next.has(id)) next.delete(id);
-          else next.add(id);
-          return next;
+          // Single select behavior: Unselect if clicked again, otherwise select ONLY this one
+          if (prev.has(id)) return new Set();
+          return new Set([id]);
       });
   };
 
   const handleDeleteSource = (id: string) => {
-      // Cleanup Object URL for memory
+      // Auto-download log if exists before deletion
       const source = sourceRegistry.get(id);
+      if (source && source.activityLog && source.activityLog.length > 0) {
+          const logData = {
+              sourceImage: source.originalUploadName || source.name,
+              processedAt: new Date().toISOString(),
+              jobHistory: source.activityLog
+          };
+          
+          const filename = `${(source.originalUploadName || source.name).split('.')[0]}.kca`;
+          const blob = new Blob([JSON.stringify(logData, null, 2)], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          log('INFO', 'Activity log downloaded', { filename });
+      }
+
+      // Cleanup Object URL for memory
       if (source && source.previewUrl) {
           URL.revokeObjectURL(source.previewUrl);
       }
@@ -703,9 +688,11 @@ const App: React.FC = () => {
       jobQueue.forEach(j => activeSourceIds.add(j.sourceImageId));
       validationQueue.forEach(v => activeSourceIds.add(v.sourceImageId));
       
-      // Also check failed items
+      // Also check failed items (if retriable)
       failedItems.forEach(f => {
-          if (f.retryCount < 3 && !f.error.toLowerCase().includes('blocked')) {
+          const isSafety = f.error.toLowerCase().includes('prohibited') || f.error.toLowerCase().includes('safety');
+          const limit = isSafety ? options.safetyRetryLimit : options.retryLimit;
+          if (f.retryCount < limit) {
              activeSourceIds.add(f.sourceImageId);
           }
       });
@@ -736,6 +723,14 @@ const App: React.FC = () => {
       setFailedItems(prev => prev.filter(f => !idsToRemove.has(f.id)));
   };
 
+  // Retry logic for specific source
+  const handleRetrySource = (id: string) => {
+    const sourceFailures = failedItems.filter(f => f.sourceImageId === id);
+    if (sourceFailures.length > 0) {
+        handleRetryAll(sourceFailures);
+    }
+  };
+
   // --- Status Derivation ---
   let currentStatusTitle = 'SYSTEM IDLE';
   let currentStatusDetail = 'Ready to process queue.';
@@ -748,7 +743,7 @@ const App: React.FC = () => {
       currentStatusDetail = `Analyzing upload ${validationQueue.length}...`;
   } else if (isProcessing) {
     if (processingCount > 0) {
-        currentStatusTitle = `GENERATING (${processingCount}/${maxConcurrentJobs})`;
+        currentStatusTitle = `GENERATING (${processingCount}/${options.concurrentJobs})`;
         currentStatusDetail = `Queue: ${activeJobs.length - processingCount} pending`;
     } else if (activeJobs.length > 0) {
             currentStatusTitle = 'PREPARING';
@@ -785,16 +780,36 @@ const App: React.FC = () => {
   };
 
   // --- Filtering & Sorting Logic for Main Gallery ---
-  const displayImages = useMemo(() => {
-    // 1. Filter
-    let filtered = selectedSourceIds.size > 0 
-      ? generatedImages.filter(img => selectedSourceIds.has(img.sourceImageId))
-      : [...generatedImages];
+  const displayItems = useMemo(() => {
+    // We combine Generated Images AND active Processing Jobs into one view
+    // Processing Jobs act as placeholders
+    
+    const processingItems = processingJobs.map(job => {
+        // Find source image for preview
+        const src = sourceRegistry.get(job.sourceImageId);
+        return {
+            type: 'JOB',
+            id: job.id,
+            url: src?.previewUrl || '', // Show original as placeholder
+            originalFilename: job.originalFilename,
+            timestamp: Date.now(), // Sort to top/bottom depending on sort
+            sourceImageId: job.sourceImageId,
+            optionsUsed: job.optionsSummary,
+            isProcessing: true
+        };
+    });
 
-    // 2. Sort
-    filtered.sort((a, b) => {
+    const generatedItems = generatedImages.map(img => ({
+        type: 'GENERATED',
+        ...img,
+        isProcessing: false
+    }));
+
+    let baseList = [...processingItems, ...generatedItems];
+
+    // Sort by criteria first
+    baseList.sort((a, b) => {
         let comparison = 0;
-        
         switch (sortBy) {
             case 'FILENAME':
                 comparison = a.originalFilename.localeCompare(b.originalFilename);
@@ -812,17 +827,22 @@ const App: React.FC = () => {
                 comparison = a.timestamp - b.timestamp;
                 break;
         }
-
         return sortOrder === 'ASC' ? comparison : -comparison;
     });
 
-    return filtered;
-  }, [generatedImages, selectedSourceIds, sortBy, sortOrder, sourceRegistry]);
+    // If selection is active, prioritize selected source items to the TOP
+    if (selectedSourceIds.size > 0) {
+        const selected = baseList.filter(img => selectedSourceIds.has(img.sourceImageId));
+        const others = baseList.filter(img => !selectedSourceIds.has(img.sourceImageId));
+        return [...selected, ...others];
+    }
+
+    return baseList;
+  }, [generatedImages, processingJobs, selectedSourceIds, sortBy, sortOrder, sourceRegistry]);
 
   // Thumbnail sizing style
   const getThumbnailStyle = () => {
       // Relative to gallery container (80vw)
-      // Small: ~20%, Medium: ~35%, Large: ~50%
       switch (thumbnailSize) {
           case 'MEDIUM':
               return { width: '32%', maxHeight: 'auto' };
@@ -841,22 +861,14 @@ const App: React.FC = () => {
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
     >
-      {/* Hidden File Input for Queue Import */}
-      <input 
-          type="file" 
-          ref={queueFileInputRef} 
-          accept=".klj,.clj" 
-          className="hidden" 
-          onChange={handleImportQueue}
-      />
-
+      
       {/* Global Drop Zone Overlay */}
       {isDraggingOver && (
-          <div className="absolute inset-0 z-50 bg-emerald-900/80 backdrop-blur-sm flex flex-col items-center justify-center pointer-events-none animate-in fade-in duration-200">
-             <div className="p-8 bg-black/50 rounded-2xl border-4 border-dashed border-emerald-500 flex flex-col items-center">
-                <Upload size={64} className="text-emerald-400 mb-4 animate-bounce" />
+          <div className="absolute inset-0 z-50 bg-violet-900/80 backdrop-blur-sm flex flex-col items-center justify-center pointer-events-none animate-in fade-in duration-200">
+             <div className="p-8 bg-black/50 rounded-2xl border-4 border-dashed border-violet-500 flex flex-col items-center">
+                <Upload size={64} className="text-violet-400 mb-4 animate-bounce" />
                 <h2 className="text-3xl font-bold text-white mb-2">Drop Images Here</h2>
-                <p className="text-emerald-200">Add to Processing Queue</p>
+                <p className="text-violet-200">Add to Processing Queue</p>
              </div>
           </div>
       )}
@@ -864,8 +876,8 @@ const App: React.FC = () => {
       {/* Header */}
       <header className="relative h-16 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-6 shrink-0 z-20 shadow-xl">
         <div className="flex items-center gap-4">
-            <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center shadow-lg shadow-emerald-900/50">
-                <span className="text-black font-black text-xl">C</span>
+            <div className="w-8 h-8 bg-violet-600 rounded-lg flex items-center justify-center shadow-lg shadow-violet-900/50">
+                <span className="text-white font-black text-xl">C</span>
             </div>
             <div>
                 <h1 className="font-bold text-lg tracking-tight">ChromaForge</h1>
@@ -881,11 +893,11 @@ const App: React.FC = () => {
                 <div className="flex flex-col flex-1 gap-1">
                     <div className="flex justify-between items-end">
                         <span className="text-[10px] text-slate-400 font-bold tracking-wider">BATCH PROGRESS</span>
-                        <span className="text-[10px] text-emerald-400 font-bold">{totalProcessed} / {totalVariationsScheduled} JOBS</span>
+                        <span className="text-[10px] text-violet-400 font-bold">{totalProcessed} / {totalVariationsScheduled} JOBS</span>
                     </div>
                     <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
                         <div 
-                            className="h-full bg-emerald-500 transition-all duration-300"
+                            className="h-full bg-violet-500 transition-all duration-300"
                             style={{ width: `${progressPercentage}%` }}
                         />
                     </div>
@@ -913,51 +925,12 @@ const App: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-4">
-             {/* Queue Import/Export */}
-             <div className="flex items-center bg-slate-800 rounded-lg p-1 border border-slate-700 gap-1">
-                <button
-                    onClick={handleExportQueue}
-                    disabled={jobQueue.length === 0}
-                    className={`p-1.5 rounded-md transition-colors ${
-                        jobQueue.length === 0 
-                        ? 'text-slate-600 cursor-not-allowed' 
-                        : 'text-slate-400 hover:text-emerald-400 hover:bg-slate-700'
-                    }`}
-                    title="Export Queue to .klj"
-                >
-                    <Save size={18} />
-                </button>
-                <div className="w-px h-4 bg-slate-700"></div>
-                <button
-                    onClick={() => queueFileInputRef.current?.click()}
-                    className="p-1.5 rounded-md text-slate-400 hover:text-emerald-400 hover:bg-slate-700 transition-colors"
-                    title="Import Queue from .klj"
-                >
-                    <FolderOpen size={18} />
-                </button>
-             </div>
-
-             {/* Job Count Input */}
-             <div className="flex items-center bg-slate-800 rounded-lg p-1 border border-slate-700 h-9" title="Concurrent Job Limit">
-                 <span className="text-[10px] text-slate-500 font-bold px-2 uppercase hidden xl:inline">Jobs:</span>
-                 <input 
-                    type="number" 
-                    min={1} 
-                    max={12} 
-                    value={maxConcurrentJobs}
-                    onChange={(e) => {
-                        const val = parseInt(e.target.value);
-                        if (!isNaN(val)) setMaxConcurrentJobs(Math.max(1, Math.min(12, val)));
-                    }}
-                    className="w-10 bg-slate-900 border border-slate-600 rounded text-xs text-center text-white focus:border-emerald-500 outline-none py-0.5"
-                 />
-             </div>
 
              <button 
                onClick={handleApiKeySelect}
                className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
                    apiKeyReady 
-                   ? 'bg-slate-800 border-emerald-900 text-emerald-400 hover:bg-slate-700' 
+                   ? 'bg-slate-800 border-violet-900 text-violet-400 hover:bg-slate-700' 
                    : 'bg-amber-900/20 border-amber-900/50 text-amber-500 hover:bg-amber-900/30'
                }`}
              >
@@ -970,7 +943,7 @@ const App: React.FC = () => {
                className={`flex items-center gap-2 px-6 py-2 rounded-lg font-bold text-sm shadow-lg transition-all ${
                    isProcessing 
                    ? 'bg-red-500/10 text-red-500 border border-red-500/50 hover:bg-red-500/20' 
-                   : 'bg-emerald-600 hover:bg-emerald-500 text-white hover:shadow-emerald-500/20'
+                   : 'bg-violet-600 hover:bg-violet-500 text-white hover:shadow-violet-500/20'
                }`}
              >
                  {isProcessing ? (
@@ -1009,12 +982,100 @@ const App: React.FC = () => {
         </div>
       </header>
 
+      {/* Button Bar (Global Toolbar) */}
+      <div className="h-16 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-6 shrink-0 z-10 shadow-md overflow-x-auto">
+           {/* Left: Sidebar Tabs */}
+           <div className="flex items-center gap-1">
+               {sidebarTabs.map(tab => (
+                    <button
+                        key={tab.id}
+                        onClick={() => setActiveSidebarTab(tab.id)}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all border ${
+                            activeSidebarTab === tab.id 
+                            ? 'bg-slate-800 border-slate-600 text-white shadow-sm' 
+                            : 'bg-transparent border-transparent text-slate-500 hover:text-slate-300 hover:bg-slate-800/50'
+                        }`}
+                    >
+                        <tab.icon size={16} className={activeSidebarTab === tab.id ? tab.color : ''} />
+                        <span className="text-xs font-bold uppercase tracking-wider">{tab.label}</span>
+                        {tab.count > 0 && (
+                            <span className={`text-[10px] px-1.5 rounded-full font-bold ${activeSidebarTab === tab.id ? 'bg-slate-900 text-slate-300' : 'bg-slate-800 text-slate-500'}`}>
+                                {tab.count}
+                            </span>
+                        )}
+                    </button>
+               ))}
+           </div>
+
+           {/* Right: Gallery Controls */}
+           <div className="flex items-center gap-4 ml-8">
+               
+               {/* Thumbnail Size Selector */}
+               <div className="flex items-center bg-slate-800 rounded p-1 border border-slate-700">
+                   <span className="px-2 text-[10px] uppercase font-bold text-slate-500 flex items-center gap-1"><Grip size={12}/> Size:</span>
+                   <button onClick={() => setThumbnailSize('SMALL')} className={`p-1.5 rounded text-xs font-bold w-8 ${thumbnailSize === 'SMALL' ? 'bg-slate-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}>S</button>
+                   <button onClick={() => setThumbnailSize('MEDIUM')} className={`p-1.5 rounded text-xs font-bold w-8 ${thumbnailSize === 'MEDIUM' ? 'bg-slate-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}>M</button>
+                   <button onClick={() => setThumbnailSize('LARGE')} className={`p-1.5 rounded text-xs font-bold w-8 ${thumbnailSize === 'LARGE' ? 'bg-slate-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}>L</button>
+               </div>
+
+               {/* Sort Controls */}
+               <div className="flex items-center bg-slate-800 rounded p-1 border border-slate-700">
+                    <span className="px-2 text-[10px] uppercase font-bold text-slate-500">Sort:</span>
+                    
+                    <div className="flex items-center gap-0.5 mr-2">
+                        <button 
+                            onClick={() => setSortBy('QUEUE')}
+                            className={`p-1.5 rounded flex items-center gap-1 transition-colors text-xs font-medium ${sortBy === 'QUEUE' ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
+                            title="Sort by Queue (Source)"
+                        >
+                            <LayoutList size={14} /> <span className="hidden sm:inline">Queue</span>
+                        </button>
+                        <button 
+                            onClick={() => setSortBy('FILENAME')}
+                            className={`p-1.5 rounded flex items-center gap-1 transition-colors text-xs font-medium ${sortBy === 'FILENAME' ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
+                            title="Sort by File Name"
+                        >
+                            <Type size={14} /> <span className="hidden sm:inline">Name</span>
+                        </button>
+                        <button 
+                            onClick={() => setSortBy('TIMESTAMP')}
+                            className={`p-1.5 rounded flex items-center gap-1 transition-colors text-xs font-medium ${sortBy === 'TIMESTAMP' ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
+                            title="Sort by Time"
+                        >
+                            <Calendar size={14} /> <span className="hidden sm:inline">Time</span>
+                        </button>
+                    </div>
+
+                    <div className="w-px h-4 bg-slate-700 mx-1"/>
+
+                    <button 
+                        onClick={() => setSortOrder(prev => prev === 'ASC' ? 'DESC' : 'ASC')}
+                        className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors"
+                        title={sortOrder === 'ASC' ? "Ascending" : "Descending"}
+                    >
+                        {sortOrder === 'ASC' ? <ArrowUp size={14} /> : <ArrowDown size={14} />}
+                    </button>
+               </div>
+
+               {generatedImages.length > 0 && (
+                   <button 
+                    onClick={handleClearGallery} 
+                    className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 hover:bg-red-900/30 text-slate-400 hover:text-red-400 border border-transparent hover:border-red-900/50 rounded-lg transition-all ml-2 text-xs font-bold uppercase tracking-wider"
+                    type="button"
+                   >
+                       <Trash2 size={14} /> Delete All
+                   </button>
+               )}
+           </div>
+      </div>
+
       {/* Main Layout */}
       <main className="flex-1 flex overflow-hidden">
         
         {/* Left Sidebar: 20vw */}
         <div className="w-[20vw] shrink-0 h-full border-r border-slate-800 bg-slate-950">
             <Sidebar 
+              activeTab={activeSidebarTab}
               jobs={jobQueue}
               validationQueue={validationQueue}
               sourceRegistry={sourceRegistry}
@@ -1025,6 +1086,7 @@ const App: React.FC = () => {
               onDeselectAll={() => setSelectedSourceIds(new Set())}
               onRetry={handleRetry}
               onRetryAll={handleRetryAll}
+              onRetrySource={handleRetrySource}
               onDeleteFailed={handleDeleteFailed}
               onDeleteJob={handleRemoveJob}
               onDeleteSource={handleDeleteSource}
@@ -1034,90 +1096,30 @@ const App: React.FC = () => {
               onEmptyValidation={handleEmptyValidationQueue}
               onEmptyJobQueue={handleEmptyJobQueue}
               onEmptyFailed={handleEmptyFailed}
+              retryLimit={options.retryLimit}
+              safetyRetryLimit={options.safetyRetryLimit}
             />
         </div>
 
         {/* Right Gallery: 80vw */}
         <div className="w-[80vw] bg-slate-950 flex flex-col min-w-0 h-full relative">
-           {/* Info Bar with Sort Controls */}
-           <div className="h-12 border-b border-slate-800 bg-slate-900 flex items-center px-4 justify-between text-xs text-slate-500 shrink-0 z-10">
-               
-               {/* Left: Counts */}
+           {/* Info Bar with Sort Controls (Cleaned Up) */}
+           <div className="h-10 border-b border-slate-800 bg-slate-900 flex items-center px-4 justify-between text-xs text-slate-500 shrink-0 z-10">
                <div className="flex items-center gap-2">
                    <span className="font-bold text-slate-400">
-                      Results: {displayImages.length} 
+                      Results: {displayItems.length} 
                    </span>
                    {selectedSourceIds.size > 0 && (
-                       <span className="bg-emerald-900/30 text-emerald-400 px-2 py-0.5 rounded border border-emerald-900/50">
-                           Filtered by Source
+                       <span className="bg-violet-900/30 text-violet-400 px-2 py-0.5 rounded border border-violet-900/50">
+                           Prioritizing Selected Source ({selectedSourceIds.size})
                        </span>
-                   )}
-               </div>
-
-               {/* Right: Controls */}
-               <div className="flex items-center gap-4">
-                   {/* Thumbnail Size Selector */}
-                   <div className="flex items-center bg-slate-800 rounded p-1 border border-slate-700">
-                       <span className="px-2 text-[10px] uppercase font-bold text-slate-500 flex items-center gap-1"><Grip size={12}/> Size:</span>
-                       <button onClick={() => setThumbnailSize('SMALL')} className={`p-1 rounded ${thumbnailSize === 'SMALL' ? 'bg-slate-600 text-white' : 'text-slate-400 hover:text-white'}`}>S</button>
-                       <button onClick={() => setThumbnailSize('MEDIUM')} className={`p-1 rounded ${thumbnailSize === 'MEDIUM' ? 'bg-slate-600 text-white' : 'text-slate-400 hover:text-white'}`}>M</button>
-                       <button onClick={() => setThumbnailSize('LARGE')} className={`p-1 rounded ${thumbnailSize === 'LARGE' ? 'bg-slate-600 text-white' : 'text-slate-400 hover:text-white'}`}>L</button>
-                   </div>
-
-                   {/* Sort Controls */}
-                   <div className="flex items-center bg-slate-800 rounded p-1 border border-slate-700">
-                        <span className="px-2 text-[10px] uppercase font-bold text-slate-500">Sort:</span>
-                        
-                        <div className="flex items-center gap-0.5 mr-2">
-                            <button 
-                                onClick={() => setSortBy('QUEUE')}
-                                className={`p-1.5 rounded flex items-center gap-1 transition-colors ${sortBy === 'QUEUE' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-200'}`}
-                                title="Sort by Queue (Source)"
-                            >
-                                <LayoutList size={14} /> <span className="hidden sm:inline">Queue</span>
-                            </button>
-                            <button 
-                                onClick={() => setSortBy('FILENAME')}
-                                className={`p-1.5 rounded flex items-center gap-1 transition-colors ${sortBy === 'FILENAME' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-200'}`}
-                                title="Sort by File Name"
-                            >
-                                <Type size={14} /> <span className="hidden sm:inline">Name</span>
-                            </button>
-                            <button 
-                                onClick={() => setSortBy('TIMESTAMP')}
-                                className={`p-1.5 rounded flex items-center gap-1 transition-colors ${sortBy === 'TIMESTAMP' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-200'}`}
-                                title="Sort by Time"
-                            >
-                                <Calendar size={14} /> <span className="hidden sm:inline">Time</span>
-                            </button>
-                        </div>
-
-                        <div className="w-px h-4 bg-slate-700 mx-1"/>
-
-                        <button 
-                            onClick={() => setSortOrder(prev => prev === 'ASC' ? 'DESC' : 'ASC')}
-                            className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors"
-                            title={sortOrder === 'ASC' ? "Ascending" : "Descending"}
-                        >
-                            {sortOrder === 'ASC' ? <ArrowUp size={14} /> : <ArrowDown size={14} />}
-                        </button>
-                   </div>
-
-                   {generatedImages.length > 0 && (
-                       <button 
-                        onClick={handleClearGallery} 
-                        className="flex items-center gap-2 px-3 py-1 bg-slate-800 hover:bg-red-900/30 text-slate-400 hover:text-red-400 border border-transparent hover:border-red-900/50 rounded transition-all ml-2"
-                        type="button"
-                       >
-                           <Trash2 size={12} /> Delete All
-                       </button>
                    )}
                </div>
            </div>
            
            {/* Grid */}
            <div ref={galleryScrollRef} className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-slate-950 relative scroll-smooth">
-                {displayImages.length === 0 ? (
+                {displayItems.length === 0 ? (
                     <div className="h-full flex flex-col items-center justify-center text-slate-700">
                         <div className="w-24 h-24 rounded-full border-4 border-slate-800 flex items-center justify-center mb-4">
                             {selectedSourceIds.size > 0 ? (
@@ -1131,53 +1133,66 @@ const App: React.FC = () => {
                     </div>
                 ) : (
                     <div className="flex flex-wrap gap-4 pb-20 justify-start align-top content-start">
-                        {displayImages.map(img => (
-                            <div 
-                                key={img.id} 
-                                className="group relative bg-slate-900 rounded-lg overflow-hidden border border-slate-800 shadow-md hover:shadow-emerald-500/10 transition-all flex items-center justify-center"
-                                style={{ flexGrow: 0, ...getThumbnailStyle() }}
-                            >
-                                <div className="relative w-full h-full">
-                                    <img 
-                                        src={img.url} 
-                                        alt="generated" 
-                                        className="w-full h-auto object-contain cursor-zoom-in"
-                                        loading="lazy"
-                                        onClick={() => setViewedImage(img)}
-                                    />
-                                    
-                                    {/* Repeat Button (Always visible on hover) */}
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); handleRepeatJob(img); }}
-                                        className="absolute top-2 left-2 p-2 bg-black/60 hover:bg-emerald-600 text-white rounded opacity-0 group-hover:opacity-100 transition-all z-20 pointer-events-auto shadow-lg"
-                                        title="Repeat this specific job configuration"
-                                    >
-                                        <RefreshCw size={16} />
-                                    </button>
+                        {displayItems.map((item: any) => {
+                            const isSelected = selectedSourceIds.has(item.sourceImageId);
+                            return (
+                                <div 
+                                    key={item.id} 
+                                    className={`group relative bg-slate-900 rounded-lg overflow-hidden shadow-md transition-all flex items-center justify-center ${isSelected ? 'border-4 border-violet-500' : 'border border-slate-800'}`}
+                                    style={{ flexGrow: 0, ...getThumbnailStyle() }}
+                                >
+                                    <div className="relative w-full h-full">
+                                        <img 
+                                            src={item.url} 
+                                            alt="content" 
+                                            className={`w-full h-auto object-contain ${item.isProcessing ? 'opacity-50 blur-[2px]' : 'cursor-zoom-in'}`}
+                                            loading="lazy"
+                                            onClick={() => !item.isProcessing && setViewedImage(item)}
+                                        />
 
-                                    {/* Delete Button */}
-                                    <button 
-                                        onClick={(e) => { e.stopPropagation(); handleDeleteGalleryItem(img.id); }}
-                                        className="absolute top-2 right-2 p-2 bg-black/60 hover:bg-red-500 text-white rounded opacity-0 group-hover:opacity-100 transition-all z-20 pointer-events-auto shadow-lg"
-                                        title="Delete Result"
-                                    >
-                                        <Trash2 size={16} />
-                                    </button>
+                                        {/* Processing Overlay */}
+                                        {item.isProcessing && (
+                                            <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                                                <Loader2 className="animate-spin text-amber-500 w-12 h-12" />
+                                            </div>
+                                        )}
+                                        
+                                        {/* Actions (Only for finished items) */}
+                                        {!item.isProcessing && (
+                                            <>
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); handleRepeatJob(item); }}
+                                                    className="absolute top-2 left-2 p-2 bg-black/60 hover:bg-violet-600 text-white rounded opacity-0 group-hover:opacity-100 transition-all z-20 pointer-events-auto shadow-lg"
+                                                    title="Repeat this specific job configuration"
+                                                >
+                                                    <RefreshCw size={16} />
+                                                </button>
 
-                                    {/* Overlay Details */}
-                                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/80 to-transparent p-4 pt-12 flex flex-col justify-end pointer-events-none transition-opacity opacity-0 group-hover:opacity-100">
-                                        <p className="text-sm text-white font-bold mb-1 truncate">{img.originalFilename}</p>
-                                        <div className="flex flex-wrap gap-1 mb-2 max-h-12 overflow-hidden">
-                                            {img.optionsUsed.split(', ').map((opt, i) => (
-                                                <span key={i} className="text-[10px] bg-white/10 px-1.5 py-0.5 rounded text-slate-300 border border-white/5">
-                                                    {opt}
-                                                </span>
-                                            ))}
+                                                <button 
+                                                    onClick={(e) => { e.stopPropagation(); handleDeleteGalleryItem(item.id); }}
+                                                    className="absolute top-2 right-2 p-2 bg-black/60 hover:bg-red-500 text-white rounded opacity-0 group-hover:opacity-100 transition-all z-20 pointer-events-auto shadow-lg"
+                                                    title="Delete Result"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </>
+                                        )}
+
+                                        {/* Overlay Details */}
+                                        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/80 to-transparent p-4 pt-12 flex flex-col justify-end pointer-events-none transition-opacity opacity-0 group-hover:opacity-100">
+                                            <p className="text-sm text-white font-bold mb-1 truncate">{item.originalFilename}</p>
+                                            <div className="flex flex-wrap gap-1 mb-2 max-h-12 overflow-hidden">
+                                                {item.optionsUsed.split(', ').map((opt: string, i: number) => (
+                                                    <span key={i} className="text-[10px] bg-white/10 px-1.5 py-0.5 rounded text-slate-300 border border-white/5">
+                                                        {opt}
+                                                    </span>
+                                                ))}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
            </div>
@@ -1186,14 +1201,14 @@ const App: React.FC = () => {
            <div className="absolute bottom-6 right-8 flex flex-col gap-2 z-30">
                <button 
                   onClick={scrollToTop} 
-                  className="p-3 bg-slate-800/80 hover:bg-emerald-600 text-white rounded-full shadow-lg border border-slate-700 backdrop-blur transition-all"
+                  className="p-3 bg-slate-800/80 hover:bg-violet-600 text-white rounded-full shadow-lg border border-slate-700 backdrop-blur transition-all"
                   title="Scroll to Top"
                >
                    <ArrowUpCircle size={24} />
                </button>
                <button 
                   onClick={scrollToBottom} 
-                  className="p-3 bg-slate-800/80 hover:bg-emerald-600 text-white rounded-full shadow-lg border border-slate-700 backdrop-blur transition-all"
+                  className="p-3 bg-slate-800/80 hover:bg-violet-600 text-white rounded-full shadow-lg border border-slate-700 backdrop-blur transition-all"
                   title="Scroll to Bottom"
                >
                    <ArrowDownCircle size={24} />

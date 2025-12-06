@@ -1,6 +1,7 @@
 
 
 export type LogLevel = 'INFO' | 'WARN' | 'ERROR' | 'GEMINI_REQ' | 'GEMINI_RES' | 'IMAGEN_REQ' | 'IMAGEN_RES';
+export type SidebarTab = 'UPLOADS' | 'VALIDATING' | 'JOBS' | 'QUEUE' | 'FAILED' | 'BLOCKED';
 
 export interface LogEntry {
   id: string;
@@ -8,6 +9,15 @@ export interface LogEntry {
   level: LogLevel;
   title: string;
   details: any;
+}
+
+export interface JobLogEntry {
+  jobId: string;
+  timestamp: string;
+  sourceFilename: string;
+  generatedFilename: string;
+  prompt: string;
+  optionsDescription: string;
 }
 
 export interface AppOptions {
@@ -23,6 +33,7 @@ export interface AppOptions {
   bondage: string[]; // New dedicated field
   shoes: string[];
   species: string[];
+  animals: string[]; // New field for Animals
   technology: string[];
   environment: string[];
   timeOfDay: string[];
@@ -39,6 +50,7 @@ export interface AppOptions {
   skinConditions: string[];
   
   // D&D Class Options
+  dndClass: string[]; // Generic Class Archetype
   dndFighterOutfit: string[];
   dndFighterWeapon: string[];
   dndClericOutfit: string[];
@@ -58,7 +70,15 @@ export interface AppOptions {
 
   replaceBackground: boolean;
   removeCharacters: boolean;
+  modesty: string;
   
+  // Settings
+  retryLimit: number;
+  safetyRetryLimit: number;
+  concurrentJobs: number;
+  outputFormat: string;
+  imageQuality: string;
+
   // Tracks which categories should have their selected options combined into a single prompt 
   // instead of generating permutations.
   combinedGroups: string[];
@@ -66,6 +86,7 @@ export interface AppOptions {
 
 export interface GlobalConfig {
   speciesGroups: Record<string, string[]>;
+  animalGroups: Record<string, string[]>; // New config group
   environmentGroups: Record<string, string[]>;
   itemGroups: Record<string, string[]>;
   decorationGroups: Record<string, string[]>;
@@ -94,6 +115,7 @@ export interface GlobalConfig {
       camera: string[];
       mood: string[];
       actions: string[];
+      dndClass: string[];
   };
 }
 
@@ -116,6 +138,7 @@ export interface SourceImage {
     previewUrl: string;
     analysis?: ImageAnalysis;
     status?: 'VALIDATING' | 'READY';
+    activityLog: JobLogEntry[];
 }
 
 // Job (Execution Unit)

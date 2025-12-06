@@ -66,7 +66,7 @@ const ConsoleDialog: React.FC<Props> = ({ isOpen, onClose }) => {
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-slate-700 bg-slate-900 rounded-t-xl">
           <div className="flex items-center gap-2 text-slate-100 font-mono font-bold">
-            <Terminal size={20} className="text-emerald-500" />
+            <Terminal size={20} className="text-violet-500" />
             <span>System Console</span>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
@@ -88,7 +88,7 @@ const ConsoleDialog: React.FC<Props> = ({ isOpen, onClose }) => {
                     onClick={() => setActiveTab(tab.id)}
                     className={`flex items-center gap-2 px-6 py-3 text-sm font-medium transition-colors border-b-2 ${
                         activeTab === tab.id 
-                        ? 'border-emerald-500 text-emerald-400 bg-slate-800' 
+                        ? 'border-violet-500 text-violet-400 bg-slate-800' 
                         : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800'
                     }`}
                 >
@@ -117,7 +117,7 @@ const ConsoleDialog: React.FC<Props> = ({ isOpen, onClose }) => {
                                     {log.level}
                                 </span>
                                 <span className="text-slate-500">{new Date(log.timestamp).toLocaleTimeString()}</span>
-                                <span className="text-emerald-400 font-bold">{log.title}</span>
+                                <span className="text-violet-400 font-bold">{log.title}</span>
                             </div>
                             <button onClick={() => copyToClipboard(log)} className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-white transition-opacity">
                                 <Copy size={14} />

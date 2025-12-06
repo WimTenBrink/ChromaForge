@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { Job, SourceImage, FailedItem, ValidationJob, GeneratedImage } from '../types';
-import { Check, Trash2, RefreshCw, AlertTriangle, Ban, XCircle, Loader2, Layers, Image as ImageIcon, ScanSearch, RotateCcw, Eraser, Filter } from 'lucide-react';
+import { Job, SourceImage, FailedItem, ValidationJob, GeneratedImage, SidebarTab } from '../types';
+import { Check, Trash2, RefreshCw, AlertTriangle, XCircle, Loader2, Layers, ScanSearch, RotateCcw, Eraser, Filter, AlertCircle, Ban } from 'lucide-react';
 
 interface Props {
+  activeTab: SidebarTab;
   jobs: Job[];
   validationQueue: ValidationJob[];
   sourceRegistry: Map<string, SourceImage>;
@@ -13,6 +14,7 @@ interface Props {
   onDeselectAll: () => void;
   onRetry: (item: FailedItem) => void;
   onRetryAll: (items: FailedItem[]) => void;
+  onRetrySource: (id: string) => void;
   onDeleteFailed: (id: string) => void;
   onDeleteJob: (id: string) => void;
   onDeleteSource: (id: string) => void;
@@ -23,11 +25,13 @@ interface Props {
   onEmptyValidation: () => void;
   onEmptyJobQueue: () => void;
   onEmptyFailed: (items: FailedItem[]) => void;
+  // Settings for counting limits
+  retryLimit: number;
+  safetyRetryLimit: number;
 }
 
-type TabType = 'UPLOADS' | 'VALIDATING' | 'JOBS' | 'QUEUE' | 'FAILED' | 'PROHIBITED' | 'BLOCKED';
-
 const Sidebar: React.FC<Props> = ({
+  activeTab,
   jobs,
   validationQueue,
   sourceRegistry,
@@ -38,6 +42,7 @@ const Sidebar: React.FC<Props> = ({
   onDeselectAll,
   onRetry,
   onRetryAll,
+  onRetrySource,
   onDeleteFailed,
   onDeleteJob,
   onDeleteSource,
@@ -46,9 +51,10 @@ const Sidebar: React.FC<Props> = ({
   onRemoveFinishedUploads,
   onEmptyValidation,
   onEmptyJobQueue,
-  onEmptyFailed
+  onEmptyFailed,
+  retryLimit,
+  safetyRetryLimit
 }) => {
-  const [activeTab, setActiveTab] = useState<TabType>('UPLOADS');
   const [showFinishedOnly, setShowFinishedOnly] = useState(false);
 
   // --- derived lists ---
@@ -56,10 +62,9 @@ const Sidebar: React.FC<Props> = ({
   const processingJobs = jobs.filter(j => j.status === 'PROCESSING');
   const queuedJobs = jobs.filter(j => j.status === 'QUEUED');
 
-  // Classification for failed items
-  const { failed, prohibited, blocked } = useMemo(() => {
-    const f: FailedItem[] = [];
-    const p: FailedItem[] = [];
+  // Classification for failed items (Combined logic)
+  const { failedOrProhibited, blocked } = useMemo(() => {
+    const fp: FailedItem[] = [];
     const b: FailedItem[] = [];
 
     failedItems.forEach(item => {
@@ -67,61 +72,67 @@ const Sidebar: React.FC<Props> = ({
                        item.error.toLowerCase().includes('safety') ||
                        item.error.toLowerCase().includes('blocked');
       
-      const maxRetries = isSafety ? 1 : 3;
+      const maxRetries = isSafety ? safetyRetryLimit : retryLimit;
 
       if (item.retryCount >= maxRetries) {
         b.push(item);
-      } else if (isSafety) {
-        p.push(item);
       } else {
-        f.push(item);
+        fp.push(item);
       }
     });
 
-    return { failed: f, prohibited: p, blocked: b };
-  }, [failedItems]);
-
-  const tabs: { id: TabType; label: string; icon: React.ElementType; count: number; color: string }[] = [
-      { id: 'UPLOADS', label: 'Upload', icon: ImageIcon, count: uploads.length, color: 'text-emerald-400' },
-      { id: 'VALIDATING', label: 'Check', icon: ScanSearch, count: validationQueue.length, color: 'text-purple-400' },
-      { id: 'JOBS', label: 'Jobs', icon: Loader2, count: processingJobs.length, color: 'text-amber-400' },
-      { id: 'QUEUE', label: 'Queue', icon: Layers, count: queuedJobs.length, color: 'text-blue-400' },
-      { id: 'FAILED', label: 'Failed', icon: RefreshCw, count: failed.length, color: 'text-orange-400' },
-      { id: 'PROHIBITED', label: 'Ban', icon: Ban, count: prohibited.length, color: 'text-red-500' },
-      { id: 'BLOCKED', label: 'Dead', icon: XCircle, count: blocked.length, color: 'text-slate-500' },
-  ];
+    return { failedOrProhibited: fp, blocked: b };
+  }, [failedItems, retryLimit, safetyRetryLimit]);
 
   // Helper to calculate job statistics for a source
   const getSourceStats = (sourceId: string) => {
-    const active = jobs.filter(j => j.sourceImageId === sourceId).length;
+    const active = jobs.filter(j => j.sourceImageId === sourceId && j.status === 'PROCESSING').length;
+    const queued = jobs.filter(j => j.sourceImageId === sourceId && j.status === 'QUEUED').length;
     const completed = generatedImages.filter(g => g.sourceImageId === sourceId).length;
-    // We count all types of failures (Failed, Prohibited, Blocked) as "Failed attempts" for stats
-    const failedAttempts = failedItems.filter(f => f.sourceImageId === sourceId).length;
     
-    // Finished means successful generations + terminal failures.
-    // However, usually users just want to know how many images they got vs how many requested.
-    // "how many jobs are linked to this and how many of them have finished"
-    const total = active + completed + failedAttempts;
-    // We'll count 'finished' as completed generations + dead/blocked jobs. Retryable failed jobs are technically 'pending retry' in user mind?
-    // But logically, a failed job is finished unless retried.
-    // Let's use: Finished = Completed (Success)
-    // Or let's use: Finished = Total - Active.
-    const finished = total - active;
+    const sourceFailures = failedItems.filter(f => f.sourceImageId === sourceId);
     
-    return { active, completed, total, finished };
+    // Count active failures vs permanently blocked based on user settings
+    let failedCount = 0;
+    let deadCount = 0;
+
+    sourceFailures.forEach(f => {
+        const isSafety = f.error.toLowerCase().includes('prohibited') || f.error.toLowerCase().includes('safety');
+        const limit = isSafety ? safetyRetryLimit : retryLimit;
+        if (f.retryCount >= limit) deadCount++;
+        else failedCount++;
+    });
+    
+    // Total jobs tracked
+    const total = active + queued + completed + failedCount + deadCount;
+    
+    // Status Flags
+    const hasActive = active > 0 || queued > 0;
+    const hasFailed = failedCount > 0;
+    const hasDead = deadCount > 0;
+    
+    // Finished: No active/queued, no failed (retryable), and has results (or is just done)
+    const hasFinished = !hasActive && !hasFailed && !hasDead && total > 0;
+
+    return { active, queued, completed, failedCount, deadCount, total, hasActive, hasFailed, hasDead, hasFinished };
   };
 
-  // Logic for green border on uploads
+  // Logic for border on uploads
   const getUploadStatusClass = (sourceId: string) => {
       const stats = getSourceStats(sourceId);
       const isValidating = validationQueue.some(v => v.sourceImageId === sourceId);
 
       if (isValidating) return 'border border-slate-800';
+
+      // "As long as an image in upload still has images that are waiting to be processed, no border should be visible."
+      if (stats.hasActive) return 'border border-slate-800';
+
+      // If finished (all done, no errors) -> Violet
+      if (stats.hasFinished) return 'border-4 border-violet-500 shadow-[0_0_15px_rgba(139,92,246,0.5)]';
       
-      // Finished if no active jobs and at least one job was attempted (total > 0)
-      if (stats.active === 0 && stats.total > 0) {
-          return 'border-4 border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.5)]';
-      }
+      // If dead (blocked errors) -> Red
+      if (stats.hasDead) return 'border-4 border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.5)]';
+      
       return 'border border-slate-800';
   };
 
@@ -131,15 +142,13 @@ const Sidebar: React.FC<Props> = ({
     return uploads.filter(src => {
         const stats = getSourceStats(src.id);
         const isValidating = validationQueue.some(v => v.sourceImageId === src.id);
-        // "Finished" means no active jobs, no validating, and has processed something
-        return !isValidating && stats.active === 0 && stats.total > 0;
+        return !isValidating && stats.hasFinished;
     });
-  }, [uploads, jobs, generatedImages, failedItems, validationQueue, showFinishedOnly]);
+  }, [uploads, jobs, generatedImages, failedItems, validationQueue, showFinishedOnly, retryLimit, safetyRetryLimit]);
 
-  // Calculate if there are any finished uploads to enable the 'Remove Finished' button
   const hasFinishedUploads = useMemo(() => {
-      return uploads.some(src => getUploadStatusClass(src.id).includes('border-emerald-500'));
-  }, [uploads, jobs, generatedImages, failedItems, validationQueue]);
+      return uploads.some(src => getSourceStats(src.id).hasFinished);
+  }, [uploads, jobs, generatedImages, failedItems, validationQueue, retryLimit, safetyRetryLimit]);
 
 
   // --- Render Helpers ---
@@ -171,7 +180,7 @@ const Sidebar: React.FC<Props> = ({
                     onClick={(e) => { e.stopPropagation(); onSelect(); }}
                     className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${
                         isSelected 
-                        ? 'bg-emerald-500 border-emerald-500 text-white' 
+                        ? 'bg-violet-500 border-violet-500 text-white' 
                         : 'bg-black/40 border-white/30 text-transparent hover:border-white/70'
                     }`}
                 >
@@ -229,7 +238,7 @@ const Sidebar: React.FC<Props> = ({
                         onClick={() => setShowFinishedOnly(!showFinishedOnly)}
                         className={`w-full mb-2 flex items-center justify-center gap-2 py-2 rounded transition-colors text-xs font-bold uppercase tracking-wider border ${
                             showFinishedOnly
-                            ? 'bg-emerald-900/30 text-emerald-400 border-emerald-500/50'
+                            ? 'bg-violet-900/30 text-violet-400 border-violet-500/50'
                             : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-750'
                         }`}
                     >
@@ -242,8 +251,8 @@ const Sidebar: React.FC<Props> = ({
                             "Remove Finished", 
                             onRemoveFinishedUploads, 
                             !hasFinishedUploads,
-                            "text-emerald-400 hover:text-red-400", 
-                            "border-emerald-900/30 hover:border-red-900/50"
+                            "text-violet-400 hover:text-red-400", 
+                            "border-violet-900/30 hover:border-red-900/50"
                         )
                     )}
                     
@@ -254,19 +263,29 @@ const Sidebar: React.FC<Props> = ({
                     {displayUploads.map((src) => {
                         const stats = getSourceStats(src.id);
                         const isAnalyzing = src.status === 'VALIDATING';
+                        const totalJobs = stats.total;
+                        const finishedJobs = stats.completed + stats.deadCount; // "Finished" in terms of process ended, even if blocked
+                        const activeFailed = stats.failedCount;
                         
                         let statusText: React.ReactNode = isAnalyzing ? 'Analyzing filename...' : `${src.type} • Source`;
                         if (!isAnalyzing) {
-                            // "how many jobs are linked to this and how many of them have finished"
                             statusText = (
-                                <div className="flex flex-col gap-0.5">
-                                    <span>{src.type} • Source</span>
-                                    <div className="flex items-center justify-between bg-slate-900/50 rounded px-1.5 py-0.5 mt-0.5 border border-slate-800">
-                                        <span className={stats.active === 0 && stats.total > 0 ? 'text-emerald-400' : 'text-slate-400'}>
-                                            Jobs: {stats.finished} / {stats.total}
-                                        </span>
-                                        {stats.active > 0 && <span className="text-amber-500 animate-pulse text-[9px] font-bold">ACTIVE</span>}
+                                <div className="flex flex-col gap-1.5">
+                                    <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono">
+                                        <span>Total: {totalJobs}</span>
+                                        <span className="text-violet-400">Done: {finishedJobs}</span>
+                                        <span className={activeFailed > 0 ? "text-orange-400 font-bold" : "text-slate-600"}>Fail: {activeFailed}</span>
                                     </div>
+                                    
+                                    {/* Retry Button if failures exist */}
+                                    {activeFailed > 0 && (
+                                         <button 
+                                            onClick={(e) => { e.stopPropagation(); onRetrySource(src.id); }}
+                                            className="w-full flex items-center justify-center gap-1.5 py-1 bg-orange-900/30 hover:bg-orange-600 text-orange-400 hover:text-white border border-orange-500/30 rounded text-[10px] font-bold transition-all uppercase"
+                                         >
+                                             <RefreshCw size={10} /> Retry Failed ({activeFailed})
+                                         </button>
+                                    )}
                                 </div>
                             );
                         }
@@ -275,7 +294,15 @@ const Sidebar: React.FC<Props> = ({
                             src.previewUrl, 
                             src.name, 
                             statusText,
-                            <button onClick={(e) => { e.stopPropagation(); onDeleteSource(src.id); }} className="p-1.5 bg-black/60 hover:bg-red-600 text-white rounded transition-colors"><Trash2 size={12}/></button>,
+                            <div className="flex items-center gap-1">
+                                <button 
+                                    onClick={(e) => { e.stopPropagation(); onDeleteSource(src.id); }} 
+                                    className="p-1.5 bg-black/60 hover:bg-red-600 text-white rounded transition-colors" 
+                                    title="Delete Source"
+                                >
+                                    <Trash2 size={12}/>
+                                </button>
+                            </div>,
                             src.status === 'VALIDATING' ? <Loader2 className="animate-spin text-purple-500" /> : null,
                             selectedSourceIds.has(src.id),
                             () => onToggleSource(src.id),
@@ -348,143 +375,86 @@ const Sidebar: React.FC<Props> = ({
              return (
                 <div className="p-4">
                     <div className="flex gap-2 mb-4">
-                        {failed.length > 0 && (
+                        {failedOrProhibited.length > 0 && (
                             <button 
-                                onClick={() => onRetryAll(failed)}
+                                onClick={() => onRetryAll(failedOrProhibited)}
                                 className="flex-1 flex items-center justify-center gap-2 py-2 bg-slate-800 hover:bg-orange-900/40 text-orange-400 hover:text-orange-200 border border-orange-900/50 rounded transition-colors text-xs font-bold uppercase tracking-wider"
                             >
                                 <RotateCcw size={14} /> Retry All
                             </button>
                         )}
-                        {failed.length > 0 && (
+                        {failedOrProhibited.length > 0 && (
                              <button 
-                                onClick={() => onEmptyFailed(failed)}
+                                onClick={() => onEmptyFailed(failedOrProhibited)}
                                 className="flex-1 flex items-center justify-center gap-2 py-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 rounded transition-colors text-xs font-bold uppercase tracking-wider"
                             >
                                 <Eraser size={14} /> Empty
                             </button>
                         )}
                     </div>
-                    {failed.length === 0 && <p className="text-slate-700 text-xs italic text-center py-4">No failed jobs</p>}
-                    {failed.map(item => (
-                        renderCard(
+
+                    {blocked.length > 0 && (
+                        <div className="mb-6 p-3 bg-slate-900 border border-red-900/30 rounded-lg">
+                             <div className="flex items-center justify-between mb-2">
+                                 <h4 className="text-xs font-bold text-red-400 uppercase">Blocked ({blocked.length})</h4>
+                                 <button 
+                                     onClick={() => onDeleteAllBlocked(blocked)}
+                                     className="text-xs text-red-500 hover:text-white flex items-center gap-1"
+                                 >
+                                     <Trash2 size={12} /> Clear
+                                 </button>
+                             </div>
+                             <div className="space-y-3">
+                                {blocked.map(item => (
+                                    renderCard(
+                                        item.sourceImagePreview, 
+                                        'Max Retries Exceeded', 
+                                        item.error,
+                                        <button onClick={() => onDeleteFailed(item.id)} className="p-1.5 bg-black/60 hover:bg-slate-700 text-white rounded"><Trash2 size={12}/></button>,
+                                        <XCircle className="text-slate-500 w-8 h-8" />,
+                                        selectedSourceIds.has(item.sourceImageId),
+                                        () => onToggleSource(item.sourceImageId),
+                                        onViewJob ? () => onViewJob(item) : undefined
+                                    )
+                                ))}
+                             </div>
+                        </div>
+                    )}
+
+                    <h4 className="text-xs font-bold text-orange-400 uppercase mb-2">Retriable ({failedOrProhibited.length})</h4>
+                    {failedOrProhibited.length === 0 && <p className="text-slate-700 text-xs italic text-center py-4">No retriable failures</p>}
+                    
+                    {failedOrProhibited.map(item => {
+                        const isSafety = item.error.toLowerCase().includes('prohibited') || item.error.toLowerCase().includes('safety');
+                        const limit = isSafety ? safetyRetryLimit : retryLimit;
+                        
+                        return renderCard(
                             item.sourceImagePreview, 
-                            `Failed: ${item.retryCount}/3`, 
+                            isSafety ? 'Prohibited Content' : `Failed: ${item.retryCount}/${limit}`, 
                             `${item.error.substring(0, 100)}...`,
                             <div className="flex gap-1">
                                 <button onClick={() => onRetry(item)} className="p-1.5 bg-black/60 hover:bg-emerald-600 text-white rounded"><RefreshCw size={12}/></button>
                                 <button onClick={() => onDeleteFailed(item.id)} className="p-1.5 bg-black/60 hover:bg-slate-700 text-white rounded"><Trash2 size={12}/></button>
                             </div>,
-                            <AlertTriangle className="text-orange-500 w-8 h-8" />,
+                            isSafety ? <Ban className="text-red-500 w-8 h-8" /> : <AlertTriangle className="text-orange-500 w-8 h-8" />,
                             selectedSourceIds.has(item.sourceImageId),
                             () => onToggleSource(item.sourceImageId),
                             onViewJob ? () => onViewJob(item) : undefined
-                        )
-                    ))}
-                </div>
-             );
-        case 'PROHIBITED':
-             return (
-                <div className="p-4">
-                     <div className="flex gap-2 mb-4">
-                        {prohibited.length > 0 && (
-                            <button 
-                                onClick={() => onRetryAll(prohibited)}
-                                className="flex-1 flex items-center justify-center gap-2 py-2 bg-slate-800 hover:bg-red-900/40 text-red-400 hover:text-red-200 border border-red-900/50 rounded transition-colors text-xs font-bold uppercase tracking-wider"
-                            >
-                                <RotateCcw size={14} /> Retry All
-                            </button>
-                        )}
-                        {prohibited.length > 0 && (
-                             <button 
-                                onClick={() => onEmptyFailed(prohibited)}
-                                className="flex-1 flex items-center justify-center gap-2 py-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 rounded transition-colors text-xs font-bold uppercase tracking-wider"
-                            >
-                                <Eraser size={14} /> Empty
-                            </button>
-                        )}
-                    </div>
-                    {prohibited.length === 0 && <p className="text-slate-700 text-xs italic text-center py-4">No violations</p>}
-                    {prohibited.map(item => (
-                        renderCard(
-                            item.sourceImagePreview, 
-                            'Safety Violation', 
-                            item.error,
-                            <div className="flex gap-1">
-                                {item.retryCount < 1 && (
-                                    <button onClick={() => onRetry(item)} className="p-1.5 bg-black/60 hover:bg-emerald-600 text-white rounded"><RefreshCw size={12}/></button>
-                                )}
-                                <button onClick={() => onDeleteFailed(item.id)} className="p-1.5 bg-black/60 hover:bg-slate-700 text-white rounded"><Trash2 size={12}/></button>
-                            </div>,
-                            <Ban className="text-red-500 w-8 h-8" />,
-                            selectedSourceIds.has(item.sourceImageId),
-                            () => onToggleSource(item.sourceImageId),
-                            onViewJob ? () => onViewJob(item) : undefined
-                        )
-                    ))}
-                </div>
-             );
-        case 'BLOCKED':
-             return (
-                <div className="p-4">
-                     {blocked.length > 0 && (
-                        <button 
-                            onClick={() => onDeleteAllBlocked(blocked)}
-                            className="w-full mb-4 flex items-center justify-center gap-2 py-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-red-400 border border-slate-700 hover:border-red-900/50 rounded transition-colors text-xs font-bold uppercase tracking-wider"
-                        >
-                            <Trash2 size={14} /> Delete All ({blocked.length})
-                        </button>
-                    )}
-                    {blocked.length === 0 && <p className="text-slate-700 text-xs italic text-center py-4">No blocked jobs</p>}
-                    {blocked.map(item => (
-                        renderCard(
-                            item.sourceImagePreview, 
-                            'Max Retries Exceeded', 
-                            item.error,
-                            <button onClick={() => onDeleteFailed(item.id)} className="p-1.5 bg-black/60 hover:bg-slate-700 text-white rounded"><Trash2 size={12}/></button>,
-                            <XCircle className="text-slate-500 w-8 h-8" />,
-                            selectedSourceIds.has(item.sourceImageId),
-                            () => onToggleSource(item.sourceImageId),
-                            onViewJob ? () => onViewJob(item) : undefined
-                        )
-                    ))}
+                        );
+                    })}
                 </div>
              );
     }
+    return null; // Should not happen
   };
 
   return (
     <div className="w-full h-full bg-slate-950 flex flex-col border-r border-slate-800">
-        {/* Tab Navigation */}
-        <div className="grid grid-cols-4 gap-0.5 p-1 bg-slate-900 border-b border-slate-800 shrink-0">
-            {tabs.map(tab => (
-                <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`flex flex-col items-center justify-center p-2 rounded transition-colors ${
-                        activeTab === tab.id 
-                        ? 'bg-slate-800 text-white' 
-                        : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50'
-                    }`}
-                >
-                    <div className="relative">
-                        <tab.icon size={16} className={`mb-1 ${activeTab === tab.id ? tab.color : ''}`} />
-                        {tab.count > 0 && (
-                            <span className="absolute -top-1.5 -right-2 bg-slate-700 text-[9px] text-white px-1 rounded-full min-w-[14px] text-center border border-slate-900 font-bold">
-                                {tab.count}
-                            </span>
-                        )}
-                    </div>
-                    <span className="text-[8px] uppercase tracking-wider font-bold">{tab.label}</span>
-                </button>
-            ))}
-        </div>
-
         {/* Action Header for current tab */}
         <div className="px-4 py-2 bg-slate-900/50 border-b border-slate-800 flex justify-between items-center text-xs">
-             <span className="text-slate-400 font-bold uppercase">{tabs.find(t => t.id === activeTab)?.label} List</span>
+             <span className="text-slate-400 font-bold uppercase">{activeTab} List</span>
              {activeTab === 'UPLOADS' && selectedSourceIds.size > 0 && (
-                <button onClick={onDeselectAll} className="text-[10px] text-emerald-400 hover:text-white flex items-center gap-1">
+                <button onClick={onDeselectAll} className="text-[10px] text-violet-400 hover:text-white flex items-center gap-1">
                     <XCircle size={10} /> Deselect All
                 </button>
              )}

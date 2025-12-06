@@ -77,7 +77,7 @@ const JobDetailDialog: React.FC<Props> = ({ job, onClose }) => {
                      <h4 className="text-sm font-bold text-slate-400 uppercase flex items-center gap-2">
                          <Terminal size={14} /> System Prompt
                      </h4>
-                     <button onClick={handleCopy} className="text-xs flex items-center gap-1 text-emerald-500 hover:text-emerald-400">
+                     <button onClick={handleCopy} className="text-xs flex items-center gap-1 text-violet-500 hover:text-violet-400">
                          <Copy size={12} /> Copy
                      </button>
                  </div>

@@ -2,6 +2,15 @@ import { GoogleGenAI, Type, GenerateContentResponse, HarmCategory, HarmBlockThre
 import { log } from "./logger";
 import { ImageAnalysis } from "../types";
 
+// Standardize safety settings across all requests
+const SAFETY_SETTINGS = [
+  { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+  { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+  { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+  { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+  { category: HarmCategory.HARM_CATEGORY_CIVIC_INTEGRITY, threshold: HarmBlockThreshold.BLOCK_NONE },
+];
+
 // Helper to extract a readable message from any error type
 const getErrorMessage = (err: any): string => {
   if (err === undefined || err === null) return "Unknown Error";
@@ -152,8 +161,35 @@ const retryOperation = async <T>(operation: () => Promise<T>, maxRetries: number
     throw lastError;
 };
 
-export const processImage = async (file: File | string, prompt: string, mimeTypeInput?: string, aspectRatio?: string): Promise<string> => {
-  log('INFO', 'Initializing Gemini Request', { model: 'gemini-3-pro-image-preview', aspectRatio });
+// Helper to get image dimensions from base64 string (browser environment)
+const getImageDimensions = (base64: string, mimeType: string): Promise<{width: number, height: number}> => {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve({ width: img.width, height: img.height });
+        img.onerror = (err) => reject(err);
+        img.src = `data:${mimeType};base64,${base64}`;
+    });
+};
+
+// Helper to find the closest supported aspect ratio for the model
+const getClosestAspectRatio = (width: number, height: number): string => {
+    const ratio = width / height;
+    const supported = [
+        { str: "1:1", val: 1 },
+        { str: "3:4", val: 3/4 },
+        { str: "4:3", val: 4/3 },
+        { str: "9:16", val: 9/16 },
+        { str: "16:9", val: 16/9 }
+    ];
+    
+    // Find closest match by absolute difference
+    return supported.reduce((prev, curr) => 
+        Math.abs(curr.val - ratio) < Math.abs(prev.val - ratio) ? curr : prev
+    ).str;
+};
+
+export const processImage = async (file: File | string, prompt: string, mimeTypeInput?: string, aspectRatio?: string, outputFormat: string = 'image/png', imageQuality: string = '4K'): Promise<string> => {
+  log('INFO', 'Initializing Gemini Request', { model: 'gemini-3-pro-image-preview', aspectRatio, outputFormat, imageQuality });
 
   // API Key Check
   const apiKey = process.env.API_KEY;
@@ -193,26 +229,34 @@ export const processImage = async (file: File | string, prompt: string, mimeType
       },
       config: {
           imageConfig: {
-              imageSize: '4K',
+              imageSize: imageQuality
+              // outputMimeType removed as it is not supported by gemini-3-pro-image-preview in generateContent
           },
           // Set all safety thresholds to BLOCK_NONE to be as tolerant as possible
-          safetySettings: [
-            { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
-            { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
-            { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-            { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-            { category: HarmCategory.HARM_CATEGORY_CIVIC_INTEGRITY, threshold: HarmBlockThreshold.BLOCK_NONE },
-          ]
+          safetySettings: SAFETY_SETTINGS
       }
     };
 
-    // Configure Aspect Ratio if specified and not 'Original'
+    // Configure Aspect Ratio
     const supportedRatios = ["1:1", "3:4", "4:3", "9:16", "16:9"];
-    if (aspectRatio && aspectRatio !== 'Original' && supportedRatios.includes(aspectRatio)) {
+    
+    // Auto-detect orientation/ratio if 'Original' or not specified
+    if (!aspectRatio || aspectRatio === 'Original') {
+        try {
+            const { width, height } = await getImageDimensions(base64Image, mimeType);
+            const closestRatio = getClosestAspectRatio(width, height);
+            requestPayload.config.imageConfig.aspectRatio = closestRatio;
+            log('INFO', 'Auto-detected Aspect Ratio', { width, height, mappedTo: closestRatio });
+        } catch (e) {
+            log('WARN', 'Failed to detect aspect ratio, defaulting to 1:1', formatErrorForLog(e));
+            requestPayload.config.imageConfig.aspectRatio = "1:1";
+        }
+    } else if (supportedRatios.includes(aspectRatio)) {
         requestPayload.config.imageConfig.aspectRatio = aspectRatio;
-    } else if (aspectRatio && aspectRatio !== 'Original') {
-         // Log warning for unsupported ratio, the prompt text will attempt to handle it
-         log('WARN', 'Unsupported Aspect Ratio config for this model, relying on prompt text', { aspectRatio });
+    } else {
+        // Log warning for unsupported ratio, the prompt text will attempt to handle it, though the API might default to 1:1
+        log('WARN', 'Unsupported Aspect Ratio config for this model, defaulting to 1:1 in config', { aspectRatio });
+        requestPayload.config.imageConfig.aspectRatio = "1:1";
     }
 
     log('GEMINI_REQ', 'Sending Generate Content Request', { 
@@ -253,7 +297,7 @@ export const processImage = async (file: File | string, prompt: string, mimeType
 
     // Extract image
     let generatedImageBase64: string | null = null;
-    let outputMimeType = 'image/jpeg'; 
+    let outputMimeType = outputFormat || 'image/png'; 
     let textResponse = '';
     
     const candidate = response.candidates[0];
@@ -355,12 +399,7 @@ export const validateFileName = async (file: File | string, mimeTypeInput?: stri
             },
             config: {
                 responseMimeType: 'text/plain',
-                safetySettings: [
-                    { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
-                    { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
-                    { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-                    { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-                ]
+                safetySettings: SAFETY_SETTINGS
             }
         }), 30000, "Image Validation")
       );
@@ -425,12 +464,7 @@ export const analyzeImage = async (file: File | string, mimeTypeInput?: string):
                       safety: { type: Type.STRING }
                   }
               },
-              safetySettings: [
-                { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
-                { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
-                { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-                { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-            ]
+              safetySettings: SAFETY_SETTINGS
           }
       }), 45000, "Image Analysis")
     );

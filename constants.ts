@@ -1,3 +1,5 @@
+
+
 import { AppOptions } from "./types";
 
 export const DEFAULT_OPTIONS: AppOptions = {
@@ -13,6 +15,7 @@ export const DEFAULT_OPTIONS: AppOptions = {
   bondage: [], // New field
   shoes: [],
   species: [],
+  animals: [], // New field
   technology: [],
   environment: [],
   timeOfDay: [],
@@ -29,6 +32,7 @@ export const DEFAULT_OPTIONS: AppOptions = {
   skinConditions: [],
   
   // D&D Defaults
+  dndClass: [],
   dndFighterOutfit: [],
   dndFighterWeapon: [],
   dndClericOutfit: [],
@@ -48,11 +52,19 @@ export const DEFAULT_OPTIONS: AppOptions = {
 
   replaceBackground: false,
   removeCharacters: false,
+  modesty: 'None',
   
+  // Settings Defaults
+  retryLimit: 5,
+  safetyRetryLimit: 2,
+  concurrentJobs: 5,
+  outputFormat: 'image/png',
+  imageQuality: '4K',
+
   combinedGroups: []
 };
 
-export const MAX_CONCURRENT_JOBS = 5;
+export const MAX_CONCURRENT_JOBS = 5; // Legacy constant, overriden by options
 
 export const DND_CLASSES = [
     'Fighter', 

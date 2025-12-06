@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { X, Download, Book, FileText } from 'lucide-react';
 import { marked } from 'marked';
@@ -65,7 +64,7 @@ The sidebar is organized into tabs using icon navigation at the top:
     *   Floating buttons in the bottom-right allow instant scrolling to **Top** or **Bottom**.
 *   **Image Actions**:
     *   **Zoom**: Click an image to view in full resolution.
-    *   **Repeat**: Hover over an image and click the **Refresh** icon to duplicate that specific job configuration and run it again.
+    *   **Repeat**: Hover over an image and click the **Refresh** icon to duplicate that specific job configuration.
     *   **Delete**: Remove specific results.
 
 ---
@@ -93,7 +92,7 @@ ChromaForge generates a Cartesian product of your settings.
 Click **Configure Generation** to access the logic engine.
 
 ### 4.1 Visual Indicators
-*   **Emerald Pill**: Single selection active.
+*   **Violet Pill**: Single selection active.
 *   **Blue Pill**: Multiple items selected in a category.
 *   **Indigo Pill**: "Combine Selections" is active (merges all selected items into one prompt instead of creating variations).
 
@@ -163,7 +162,7 @@ const ManualDialog: React.FC<Props> = ({ isOpen, onClose }) => {
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-slate-800 bg-slate-950 rounded-t-xl z-10">
             <div className="flex items-center gap-3">
-                <div className="p-2 bg-emerald-900/30 rounded-lg border border-emerald-500/30 text-emerald-400">
+                <div className="p-2 bg-violet-900/30 rounded-lg border border-violet-500/30 text-violet-400">
                     <Book size={24} />
                 </div>
                 <div>
@@ -193,7 +192,7 @@ const ManualDialog: React.FC<Props> = ({ isOpen, onClose }) => {
         <div className="flex-1 overflow-y-auto bg-slate-950 p-8 sm:p-12">
             <div className="max-w-5xl mx-auto">
                 <div 
-                    className="prose prose-invert prose-emerald max-w-none"
+                    className="prose prose-invert prose-violet max-w-none"
                     dangerouslySetInnerHTML={{ __html: htmlContent }}
                 />
                 

@@ -1,17 +1,56 @@
-import { AppOptions } from "../types";
+
+
+import { AppOptions, GlobalConfig } from "../types";
 import { DND_CLASSES } from "../constants";
 
+// Helper to determine buckets for smart grouping
+// Returns a map of GroupKey -> SelectedValues[]
+// Unmatched values go to 'Misc'
+const getSmartGroupBuckets = (
+    selectedItems: string[], 
+    groupsConfig: Record<string, string[]> | undefined
+) => {
+    const buckets: Record<string, string[]> = {};
+    
+    if (!groupsConfig) {
+        buckets['default'] = selectedItems;
+        return buckets;
+    }
+
+    // Invert the config for O(1) lookup: OptionValue -> GroupName
+    const itemToGroup: Record<string, string> = {};
+    Object.entries(groupsConfig).forEach(([groupName, items]) => {
+        items.forEach(item => {
+            itemToGroup[item] = groupName;
+        });
+    });
+
+    selectedItems.forEach(item => {
+        const group = itemToGroup[item] || `Misc_${item}`; // Unique group for misc items to preserve their perm behavior
+        if (!buckets[group]) buckets[group] = [];
+        buckets[group].push(item);
+    });
+
+    return buckets;
+};
+
 /**
- * Calculates the number of permutations without generating the objects.
- * Useful for UI counters.
+ * Calculates the number of permutations.
+ * Updates to include smart grouping logic.
  */
-export const countPermutations = (options: AppOptions): number => {
+export const countPermutations = (options: AppOptions, config: GlobalConfig | null): number => {
     // 1. Calculate Base Permutations (Standard Options)
     const allKeys = Object.keys(options) as (keyof AppOptions)[];
+    
+    // Categories that use smart grouping (Additive if different groups)
+    const smartGroupCategories: (keyof AppOptions)[] = ['skinConditions', 'decorations', 'bondage', 'items'];
+
+    // Base keys: Arrays, not combinedGroups control, not dnd (except dndClass), and NOT smart group categories
     const baseKeys = allKeys.filter(key => 
         key !== 'combinedGroups' && 
         Array.isArray(options[key]) && 
-        !key.startsWith('dnd')
+        (!key.startsWith('dnd') || key === 'dndClass') &&
+        !smartGroupCategories.includes(key)
     );
 
     let baseCount = 1;
@@ -26,7 +65,44 @@ export const countPermutations = (options: AppOptions): number => {
         }
     });
 
-    // 2. Calculate D&D Permutations (Union of Classes)
+    // 2. Smart Group Permutations
+    // For these categories, we split selected items into buckets.
+    // Each bucket contributes to permutations multiplicatively.
+    // Example: Face:[Mud] (1) * Arms:[Blood, Oil] (2) = 2 Permutations
+    if (config) {
+        smartGroupCategories.forEach(key => {
+            const val = options[key] as string[];
+            if (val.length > 0) {
+                if (options.combinedGroups.includes(key)) {
+                     baseCount *= 1;
+                } else {
+                    // Determine bucket logic based on key
+                    let groups: Record<string, string[]> | undefined;
+                    if (key === 'skinConditions') groups = config.skinConditionGroups;
+                    if (key === 'decorations') groups = config.decorationGroups;
+                    if (key === 'bondage') groups = config.bondageGroups;
+                    if (key === 'items') groups = config.itemGroups;
+
+                    const buckets = getSmartGroupBuckets(val, groups);
+                    
+                    // Multiply base count by the size of each bucket
+                    Object.values(buckets).forEach(bucketItems => {
+                        baseCount *= bucketItems.length;
+                    });
+                }
+            }
+        });
+    } else {
+        // Fallback if no config (treat as standard)
+        smartGroupCategories.forEach(key => {
+             const val = options[key] as string[];
+             if (val.length > 0 && !options.combinedGroups.includes(key)) {
+                 baseCount *= val.length;
+             }
+        });
+    }
+
+    // 3. Calculate D&D Permutations (Union of Classes - Specific Gear)
     let dndCount = 0;
     
     DND_CLASSES.forEach(cls => {
@@ -48,9 +124,6 @@ export const countPermutations = (options: AppOptions): number => {
             clsWeaponCount = options.combinedGroups.includes(weaponKey) ? 1 : weapons.length;
         }
 
-        // Logic: if only outfits selected -> count = outfits
-        // if only weapons selected -> count = weapons
-        // if both -> count = outfits * weapons
         let clsTotal = 0;
         if (clsOutfitCount > 0 && clsWeaponCount > 0) {
             clsTotal = clsOutfitCount * clsWeaponCount;
@@ -72,58 +145,103 @@ export const countPermutations = (options: AppOptions): number => {
  * Generates a Cartesian product of all selected options.
  * Returns an array of objects, where each object represents a unique combination.
  */
-export const generatePermutations = (options: AppOptions) => {
-  // 1. Identify all active keys in the options object
+export const generatePermutations = (options: AppOptions, config: GlobalConfig | null) => {
   const allKeys = Object.keys(options) as (keyof AppOptions)[];
   
-  // 2. Separate keys
-  // Base keys: Arrays, not combinedGroups control, and NOT starting with 'dnd'
+  const smartGroupCategories: (keyof AppOptions)[] = ['skinConditions', 'decorations', 'bondage', 'items'];
+
+  // Base keys: Normal options that are strictly permutations
   const baseKeys = allKeys.filter(key => 
     key !== 'combinedGroups' && 
     Array.isArray(options[key]) && 
-    !key.startsWith('dnd')
+    (!key.startsWith('dnd') || key === 'dndClass') &&
+    !smartGroupCategories.includes(key)
   );
 
-  // 3. Generate Base Processing List
-  const baseProcessingList: { key: string; values: any[] }[] = [];
+  const processingList: { key: string; values: any[] }[] = [];
   
+  // 1. Process Base Keys
   baseKeys.forEach(key => {
       const val = options[key] as string[];
-      if (val.length === 0) return; // Skip empty categories
+      if (val.length === 0) return;
 
       if (options.combinedGroups.includes(key)) {
-          baseProcessingList.push({ key, values: [val.join(' + ')] });
+          processingList.push({ key, values: [val.join(' + ')] });
       } else {
-          baseProcessingList.push({ key, values: val });
+          processingList.push({ key, values: val });
+      }
+  });
+
+  // 2. Process Smart Group Keys (Skin, Decor, etc.)
+  smartGroupCategories.forEach(key => {
+      const val = options[key] as string[];
+      if (val.length === 0) return;
+
+      if (options.combinedGroups.includes(key)) {
+           // Combined manually: Treat as one single merged value
+           processingList.push({ key, values: [val.join(' + ')] });
+      } else if (config) {
+            // Smart Grouping Logic
+            let groups: Record<string, string[]> | undefined;
+            if (key === 'skinConditions') groups = config.skinConditionGroups;
+            if (key === 'decorations') groups = config.decorationGroups;
+            if (key === 'bondage') groups = config.bondageGroups;
+            if (key === 'items') groups = config.itemGroups;
+
+            const buckets = getSmartGroupBuckets(val, groups);
+
+            // Each bucket becomes a virtual key for the cartesian product
+            // e.g. skinConditions_Face: ['Mud'], skinConditions_Arms: ['Blood', 'Oil']
+            Object.entries(buckets).forEach(([bucketKey, items]) => {
+                const virtualKey = `${key}_SMART_${bucketKey}`; // temp key
+                processingList.push({ key: virtualKey, values: items });
+            });
+      } else {
+           // Fallback if no config
+           processingList.push({ key, values: val });
       }
   });
 
   // Helper to calculate cartesian product
   const cartesian = (a: any[], b: any[]) => [].concat(...a.map((d: any) => b.map((e: any) => [].concat(d, e))));
   
-  // 4. Generate Base Combinations
+  // 3. Generate Base Combinations
   let baseCombinations: any[] = [{}];
   
-  if (baseProcessingList.length > 0) {
-      const arraysToPermute = baseProcessingList.map(p => p.values);
+  if (processingList.length > 0) {
+      const arraysToPermute = processingList.map(p => p.values);
       let product: any[] = arraysToPermute[0];
       if (arraysToPermute.length > 1) {
           product = arraysToPermute.reduce((a, b) => cartesian(a, b));
       }
       
-      // Ensure array of arrays
       const rawCombinations = (Array.isArray(product[0]) ? product : product.map((p: any) => [p])) as any[][];
       
       baseCombinations = rawCombinations.map(vals => {
           const obj: any = {};
+          
+          // Reconstruct object
           vals.forEach((v, i) => {
-              obj[baseProcessingList[i].key] = v;
+              const pKey = processingList[i].key;
+              
+              if (pKey.includes('_SMART_')) {
+                  // This is a virtual key from Smart Grouping.
+                  // We need to merge it back into the main key.
+                  const realKey = pKey.split('_SMART_')[0];
+                  if (!obj[realKey]) {
+                      obj[realKey] = v;
+                  } else {
+                      obj[realKey] = `${obj[realKey]} + ${v}`; // Additive merge
+                  }
+              } else {
+                  obj[pKey] = v;
+              }
           });
           return obj;
       });
   }
 
-  // 5. Generate D&D Class Combinations (Union Logic)
+  // 4. Generate D&D Class Combinations
   let dndCombinations: any[] = [];
   
   DND_CLASSES.forEach(cls => {
@@ -135,7 +253,6 @@ export const generatePermutations = (options: AppOptions) => {
       
       if (rawOutfits.length === 0 && rawWeapons.length === 0) return;
 
-      // Prepare values for this class
       let outfits: string[] = [];
       if (rawOutfits.length > 0) {
           if (options.combinedGroups.includes(outfitKey)) {
@@ -154,9 +271,7 @@ export const generatePermutations = (options: AppOptions) => {
           }
       }
 
-      // Generate per-class permutations
       if (outfits.length > 0 && weapons.length > 0) {
-          // Cartesian of Outfit x Weapon
           outfits.forEach(o => {
               weapons.forEach(w => {
                   dndCombinations.push({
@@ -166,12 +281,10 @@ export const generatePermutations = (options: AppOptions) => {
               });
           });
       } else if (outfits.length > 0) {
-          // Only Outfits
           outfits.forEach(o => {
               dndCombinations.push({ [outfitKey]: o });
           });
       } else if (weapons.length > 0) {
-          // Only Weapons
           weapons.forEach(w => {
               dndCombinations.push({ [weaponKey]: w });
           });
@@ -179,18 +292,14 @@ export const generatePermutations = (options: AppOptions) => {
   });
 
   if (dndCombinations.length === 0) {
-      dndCombinations.push({}); // Ensure at least one empty dnd combo exists to multiply with base
+      dndCombinations.push({}); 
   }
 
-  // 6. Cross Product Base x D&D
-  // We manually cross them because 'cartesian' helper expects arrays of values, 
-  // here we have arrays of objects.
-  
+  // 5. Cross Product Base x D&D
   const finalCombinations: any[] = [];
   
   baseCombinations.forEach(base => {
       dndCombinations.forEach(dnd => {
-          // Merge logic: spread base, spread dnd, and add flags
           const combo = {
               ...base,
               ...dnd
@@ -198,6 +307,7 @@ export const generatePermutations = (options: AppOptions) => {
           
           if (options.replaceBackground) combo.replaceBackground = true;
           if (options.removeCharacters) combo.removeCharacters = true;
+          if (options.modesty) combo.modesty = options.modesty;
           
           finalCombinations.push(combo);
       });
@@ -220,6 +330,8 @@ export const buildPromptFromCombo = (combo: any): string => {
   // Only add character details if we are NOT removing characters
   if (!combo.removeCharacters) {
       if (shouldInclude(combo.species)) details.push(`- Species: ${combo.species}`);
+      if (shouldInclude(combo.animals)) details.push(`- Animal/Creature Species: ${combo.animals}`);
+      if (shouldInclude(combo.dndClass)) details.push(`- D&D Class Archetype: ${combo.dndClass}`);
       if (shouldInclude(combo.gender)) details.push(`- Gender: ${combo.gender}`);
       if (shouldInclude(combo.age)) details.push(`- Age: ${combo.age}`);
       if (shouldInclude(combo.bodyType)) details.push(`- Body Type: ${combo.bodyType}`);
@@ -336,6 +448,39 @@ export const buildPromptFromCombo = (combo: any): string => {
     ? "7. CONTENT SAFETY: The user has explicitly requested ARTISTIC NUDITY or Bondage. Do NOT enable clothing filters. The character MUST BE NUDE. Use chiaroscuro (shadows), camera angles, hair, or objects to obscure genitals/nipples naturally for safety compliance, but DO NOT ADD CLOTHES."
     : "";
 
+  let modestyInstruction = "";
+  if (requiresNudityCoverage && combo.modesty && combo.modesty !== 'None') {
+      switch (combo.modesty) {
+          case 'Left Hand Cover':
+              modestyInstruction = "MODESTY STRATEGY: The character must use their LEFT HAND to cover their genital area. Remove any objects from the left hand to ensure it is empty for coverage.";
+              break;
+          case 'Right Hand Cover':
+              modestyInstruction = "MODESTY STRATEGY: The character must use their RIGHT HAND to cover their genital area. Remove any objects from the right hand to ensure it is empty for coverage.";
+              break;
+          case 'Both Hands Cover':
+              modestyInstruction = "MODESTY STRATEGY: The character must use BOTH HANDS for coverage. One hand must cover the genital area, and the other must cover a breast. Remove objects from both hands.";
+              break;
+          case 'Strategic Object':
+              modestyInstruction = "MODESTY STRATEGY: Use a strategically placed object (like a vase, weapon, fabric, or environment element) to visually block the genital area.";
+              break;
+          case 'Transparent Veil':
+              modestyInstruction = "MODESTY STRATEGY: Drape a sheer, transparent veil or silk fabric over the torso and hips to provide a layer of covering while maintaining visibility.";
+              break;
+          case 'Long Hair Cover':
+             modestyInstruction = "MODESTY STRATEGY: Use long, flowing hair to naturally obscure the nipples and genital area.";
+             break;
+          case 'Crossed Legs':
+             modestyInstruction = "MODESTY STRATEGY: Pose the character with crossed legs (standing or sitting) or a knee lift to conceal the genital area.";
+             break;
+          case 'Heavy Shadow':
+             modestyInstruction = "MODESTY STRATEGY: Use deep, high-contrast shadows (chiaroscuro) to hide the private areas in darkness.";
+             break;
+           case 'Steam/Mist':
+             modestyInstruction = "MODESTY STRATEGY: Use swirling steam, mist, or fog to obscure the private areas.";
+             break;
+      }
+  }
+
   return `
     You are a professional concept artist and colorist.
     Task: Transform the provided line art into a hyper-realistic, 8K resolution masterpiece.
@@ -357,14 +502,15 @@ export const buildPromptFromCombo = (combo: any): string => {
     ${style.join('\n    ')}
     
     IMPORTANT INSTRUCTIONS:
-    1. Apply the 'Species' setting (if specified) to the main humanoid character in the line art.
-    2. Ensure strict logical consistency between the Technology/Environment and the Character's attire/class. 
-    3. Make sure people in the generated images wear the proper clothes for their technology and the environment, unless the Attire/Bondage option specifies otherwise.
-    4. Maintain the original pose and gesture of the character(s) strictly. Do not add new limbs.
+    1. POSE PRIORITY: The most important aspect to preserve is the POSE and GESTURE of the characters. Use details from the original image (hair, features) unless they contradict a selected Option.
+    2. ATTIRE OVERRIDE: The user's chosen 'Attire' or 'Clothes' option is ABSOLUTE. If the original image depicts clothing that conflicts with the selection (e.g., original has a dress, option is 'Bikini'), you MUST REMOVE the original clothing and render the selected attire. Modify the underlying body structure if necessary to show skin that was previously covered, while keeping the original pose.
+    3. Apply the 'Species' setting (if specified) to the main humanoid character. If 'Animal/Creature' is specified, apply that to the main subject.
+    4. Ensure strict logical consistency between the Technology/Environment and the Character's attire/class. 
     ${modeInstruction}
     6. If an option is not set (missing from the lists above), do not use it or infer it arbitrarily; use the original image content as the guide for that aspect.
-    7. IMPORTANT: Preserve all facial details, expressions, and features from the original line art. Do not distort the face.
+    7. Preserve facial details, expressions, and features from the original line art.
     ${coverageInstruction}
+    ${modestyInstruction}
     
     Output a single, high-quality, photorealistic image.
   `.trim();
